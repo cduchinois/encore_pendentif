@@ -6,3 +6,5 @@
 - 2026-07-22 Double tap = pin, long press = privacy. Highlights are automatic (crowd volume), no dedicated gesture.
 - 2026-07-22 Deep-sleep listening management -> roadmap, not hackathon scope.
 - 2026-07-22 NVIDIA challenge = conditional stretch goal only (vLLM night-batch variant), never before the core demo works.
+- 2026-07-23 Heart-shaped case replaces the round puck: pulse-wave engraving = the product story worn on the chest; USB-C slot so it charges closed.
+- 2026-07-23 Components stacked (LiPo flat, XIAO on top, USB at right wall), not side-by-side: smallest heart face (58 mm vs ~70 mm); XIAO header pins clipped flush, camera removed.
