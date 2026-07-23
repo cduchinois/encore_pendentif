@@ -385,7 +385,10 @@ def render(front, back, dummies, dims, out):
         el, az = np.radians(elev), np.radians(azim)
         view = np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
         order = np.argsort(F.mean(axis=1) @ view)
-        ax.add_collection3d(Poly3DCollection(F[order], facecolors=C[order], edgecolor="none"))
+        # edges painted like the faces: kills the anti-aliasing hairlines that
+        # read as "rays" across flat surfaces in the PNG render
+        ax.add_collection3d(Poly3DCollection(F[order], facecolors=C[order],
+                                             edgecolors=C[order], linewidths=0.35))
         ax.set_box_aspect((1, 1, 1)); ax.set_axis_off()
         ax.set_xlim(-r, r); ax.set_ylim(-r, r); ax.set_zlim(zc - r, zc + r)
         ax.view_init(elev=elev, azim=azim); ax.set_title(title, fontsize=11)
@@ -396,7 +399,7 @@ def render(front, back, dummies, dims, out):
 
     panel(fig.add_subplot(2, 2, 1, projection="3d"),
           [(back, dgrey), (front, grey)],
-          "1 · closed — front view (raised pulse, bail)", 90, -90, 33)
+          "1 · closed — front view (raised pulse, bail)", 64, -90, 33)
     panel(fig.add_subplot(2, 2, 2, projection="3d"),
           [(back, dgrey), (front, grey)],
           "1b · side view — thickness + seam between the shells", 0, -90, 33)
