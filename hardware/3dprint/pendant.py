@@ -337,6 +337,20 @@ def build():
     comps["touch_wire"] = (tube([(fminx + 2.0, (fminy + fmaxy) / 2, H - FLOORS + 0.9),
                                  (fminx + 2.0, (fminy + fmaxy) / 2, 3.0),
                                  gpio1], 0.5), (.85, .72, .25), 0.6)
+    # 2.4 GHz FPC WiFi antenna: glued flat under the front ceiling, upper band
+    # spanning both lobes — clear of the copper touch zone (below), the acoustic
+    # chamber (right) and far from the battery (back shell). Clipped to the
+    # interior outline: the flexible sheet simply follows the ceiling.
+    ant_poly = shp_box(-22, 16, 18, 28).intersection(cavity_poly.buffer(-1.0)).buffer(0)
+    ant = tz(extrude_polygon(ant_poly, 0.4), H - FLOORS - 0.45)
+    comps["antenna"] = (ant, (.13, .13, .15), 1.0)
+    # U.FL pigtail: from the connector on the base PCB, gentle loop up to the sheet
+    ufl = (px_c - PCB_L / 2 + 2.2, yc - 4.5, z_pcb_top + 1.2)
+    comps["ant_cable"] = (tube([ufl,
+                                (px_c - PCB_L / 2 - 4.0, yc - 4.0, 2.0),
+                                (-19.0, 8.0, 5.2),
+                                (-17.0, 17.5, H - FLOORS - 0.7)], 0.55),
+                         (.07, .07, .08), 0.6)
     dummies = {k: v[0] for k, v in comps.items()}
 
     dims = dict(width=round(maxx - minx, 1),
@@ -454,7 +468,10 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
  <p>two snap-fit shells · XIAO ESP32-S3 (no camera, pins clipped) + LiPo 502030</p>
  <p style="color:#d98b3c"><b>orange sheet = copper tape</b> — the touch electrode, glued
  inside the recess behind the pulse (membrane 1.05 mm); <b style="color:#cbb14a">yellow
- wire</b> → GPIO1 (T1). Tap the pulse = pin.</p></div>
+ wire</b> → GPIO1 (T1). Tap the pulse = pin.</p>
+ <p><b>black sheet = 2.4 GHz FPC WiFi antenna</b> — glued under the front ceiling,
+ upper band: away from the copper (detuning), the mic chamber and the battery.
+ Thin coax loops to the U.FL socket on the board.</p></div>
 <div id="dims"></div>
 <div id="panel">
  <label>open ⇠⇢ assemble</label>
@@ -478,7 +495,11 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
  6 · <b style="color:#d98b3c">touch</b>: copper tape (orange) pressed into the pulse
  recess of the front shell, yellow lead soldered to <b>GPIO1 (T1)</b> top-side
  through-hole — the pulse relief becomes the pin button (double tap = pin,
- long press = privacy)
+ long press = privacy)<br>
+ 7 · <b>antenna</b>: click the U.FL plug flat onto the board BEFORE placing it in
+ the case (press straight down until it clicks, never at an angle), dab of hot
+ glue on the plug, stick the FPC sheet under the front ceiling (upper band),
+ coax in a loose loop — no tension when closing, ≥5 mm from the copper tape
 </div>
 <script>
 "use strict";
