@@ -239,23 +239,8 @@ def build():
     # USB-C slot through the front wall, above the seam
     usb_slot = box(extents=[16, USB_W + 3.0, USB_H + 2.2])
     usb_slot.apply_translation([x_right + 8, yc, z_pcb_top + USB_H / 2 + 0.3])
-    cuts = [channel, groove, usb_slot]
-    # mic: acoustic chamber recess inside the front shell spanning the whole
-    # plausible mic zone (exact mic XY unverified — chamber makes it non-critical),
-    # vented by a 5-hole cluster centered on the best-estimate position
-    mic_c = (x_right - PCB_L / 2 + MIC_POS[0], yc + MIC_POS[1])
-    chamber = box(extents=[16, 12, 1.4])
-    chamber.apply_translation([x_right - PCB_L / 2 + 1.5, yc + 3.5, H - FLOORS + 0.69])
-    cuts.append(chamber)
-    for dx, dy in [(0, 0), (2.4, 0), (-2.4, 0), (0, 2.4), (0, -2.4)]:
-        hcyl = cylinder(radius=0.8, height=14, sections=48)
-        hcyl.apply_translation([mic_c[0] + dx, mic_c[1] + dy, H - 2])
-        cuts.append(hcyl)
-    front = trimesh.boolean.difference([front] + cuts)
-
-    # ENGRAVED pulse (v3.2): the face prints against the bed -> the engraving
-    # comes out crisp and the wall under it thins to ~1.0 mm, so the copper
-    # electrode senses through it (no separate inner recess needed)
+    # engraved pulse (v3.2): prints against the bed -> crisp; wall under the
+    # groove thins to ~1.0 mm so the copper electrode senses through it
     cap = heart.buffer(-inset_at(H))
     cminx, _, cmaxx, _ = cap.bounds
     cw = cmaxx - cminx
@@ -265,7 +250,20 @@ def build():
     line = LineString([(px * cw, py * cw * 0.62 + 1.0) for px, py in pts])
     pulse = line.buffer(1.5).intersection(cap.buffer(-1.2)).buffer(0)
     engrave = tz(extrude_polygon(pulse, ENGRAVE + 0.5), H - ENGRAVE)
-    front = trimesh.boolean.difference([front, engrave])
+    cuts = [channel, groove, usb_slot, engrave]
+    # mic: acoustic chamber recess inside the front shell spanning the whole
+    # plausible mic zone (exact mic XY unverified — chamber makes it non-critical),
+    # vented by a 5-hole cluster centered on the best-estimate position
+    mic_c = (x_right - PCB_L / 2 + MIC_POS[0], yc + MIC_POS[1])
+    ch_poly = shp_box(x_right - PCB_L / 2 + 1.5 - 8, yc + 3.5 - 6,
+                      x_right - PCB_L / 2 + 1.5 + 8, yc + 3.5 + 6) \
+        .difference(pulse.buffer(1.2)).buffer(0)
+    cuts.append(tz(extrude_polygon(ch_poly, 1.4), H - FLOORS - 0.01))
+    for dx, dy in [(0, 0), (2.4, 0), (-2.4, 0), (0, 2.4), (0, -2.4)]:
+        hcyl = cylinder(radius=0.8, height=14, sections=48)
+        hcyl.apply_translation([mic_c[0] + dx, mic_c[1] + dy, H - 2])
+        cuts.append(hcyl)
+    front = trimesh.boolean.difference([front] + cuts)
 
     # ---------------- exact component models ----------------
     def rrect(cx2, cy2, L, Wd, r, h, z):
