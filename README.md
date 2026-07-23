@@ -58,22 +58,7 @@ Positioning: **Shazam identifies songs. Encore captures the emotion of the party
 
 ## 3. Architecture
 
-```
-[Pendant: XIAO ESP32-S3 Sense]
-  mic PDM -> audio frames --WiFi/UDP (BLE fallback)--> [iPhone app]
-  touch: double tap = PIN, long press = PRIVACY        |
-  WS2812B LED <-- CMD_LED (ambiance color / pin flash) |
-                                                       v
-[iPhone (all local)]                          [Mac (prep + fallback)]
-  1. ShazamKit custom catalog (offline match)   pipeline/ = same logic in Python
-  2. embeddings similarity                      data prep runs the night before
-  3. ShazamKit world catalog (if online)
-  4. Gemma 4 E2B ID card (native audio in)
-  journal -> recap -> MusicKit playlist
-                                     [deferred, online only]
-                                       SerpAPI lyrics/tracklist resolve
-                                       iTunes/Spotify enrichment
-```
+![Encore architecture — pendant streams audio to the iPhone, which runs the recognition ladder and Gemma locally; the Mac prepares the catalog the night before; the cloud only resolves unknowns later](docs/architecture.svg)
 
 **The recognition ladder** (most precise → most robust): local fingerprint (ShazamKit custom catalog, 100% offline, 3–5 s) → embeddings similarity → Shazam world catalog (if online) → **Gemma ID card** (the model listens and describes what nothing else recognizes). Nothing is ever lost: every unknown keeps its clip, fingerprint, embedding and ID card for deferred resolution when network returns (SerpAPI lyrics/tracklist search, arbitrated by Gemma).
 
