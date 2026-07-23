@@ -29,7 +29,7 @@ i "ios: UDP receiver + ring buffer + waveform debug view" "Gate 1 (10:30)." "-l 
 i "ios: ShazamKit custom catalog matching" "Load signatures from catalog build; SHCustomCatalog offline match. Gate 2 (12:00)." "-l ios,core"
 i "ios: journal + timeline UI" "Per contracts/journal.schema.json. Timeline per demo/dashboard mockup." "-l ios,core"
 i "ios: pin event end-to-end" "EVENT(1) -> journal pin -> UI badge -> CMD_LED flash. Gate 3." "-l ios,core"
-i "ios: Gemma E2B runner + fiche ID on unknown clip" "Prompt ios/Encore/Gemma/prompts/id_card.md; output MUST validate schema. Gate 3 (13:30)." "-l ios,core"
+i "ios: Gemma E2B runner + ID card on unknown clip" "Prompt ios/Encore/Gemma/prompts/id_card.md; output MUST validate schema. Gate 3 (13:30)." "-l ios,core"
 i "ios: recap generation (Gemma) + energy curve" "Uses compiled party state." "-l ios,core"
 i "ios: MusicKit playlist export" "Playlist in Apple Music from journal, pins first. Gate 4 (15:00)." "-l ios,core"
 i "pipe: context compiler (party state + SERP evidence)" "pipeline/context/compiler.py, deterministic, tested. Shared shape with Swift." "-l pipeline,context-eng,core"

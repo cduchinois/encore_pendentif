@@ -1,30 +1,60 @@
 # Encore
 
-**Le pendentif qui capte la setlist pendant que tu profites pleinement de ta soirée, et te fait revivre l'émotion, one more time, le lendemain.**
-
-*The pendant that captures your night's setlist while you live it — and gives you back the emotion, one more time, the next day.*
+**Encore is an intelligent pendant that captures every track, transition, and emotion of a DJ set — in real time and entirely on-device — so you can stay present, have fun, and enjoy the party without reaching for your phone. Then, Encore turns it all into a playlist that lets you relive the party, encore and encore.**
 
 Built at the **Gemma 4 Hackathon Paris (2026-07-25)**. Tracks: Edge/On-Device (main), Context Engineering for SLMs (Alien Intelligence), NVIDIA GPU Challenge (optional stretch).
 Team: **Jade** (iOS + firmware), **Mathieu** (pipeline + data).
 
-> Start here: [`CLAUDE.md`](CLAUDE.md) (context + repo rules) → [`PLAN.md`](PLAN.md) (the day, gate by gate) → [`docs/PROPOSAL.md`](docs/PROPOSAL.md) (full PRD, French).
+> Start here: [`CLAUDE.md`](CLAUDE.md) (context + repo rules) → [`PLAN.md`](PLAN.md) (the day, gate by gate) → [`docs/PROPOSAL.md`](docs/PROPOSAL.md) (full PRD).
 > After creating the GitHub repo, run `./bootstrap.sh` once to create labels, the freeze milestone and all work-item issues.
 
 ---
 
 ## 1. The problem
 
-Pulling out your phone to Shazam mid-emotion is inhuman: it kills the vibe, yours and everyone else's. Worse, it doesn't even work — Shazam chokes on DJ transitions, pitched tracks, bootlegs and unreleased music, and without network it answers the next day. At best you're left with a flat list of titles. The night itself is lost.
+**Music is supposed to make you forget time, space, and your phone.**
+
+But apps like Shazam have taught us to do the opposite. The moment you hear a track you love, you reach into your pocket, unlock your phone, open the app, and point it toward the room.
+
+***The moment is gone.***
+
+Sometimes you are not quick enough to catch the track. The fear of missing it pulls you away from the music, the people around you, and the experience itself. Instead of living the night, you are looking at a screen.
+
+**And even worse, Shazam does not always find the song.** DJ transitions, edits, pitched tracks, bootlegs, rarities, and unreleased music are often the sounds that define an unforgettable night — and they are exactly the sounds traditional recognition struggles to identify.
+
+Even when it works, all you receive is a flat list of song titles.
+
+**You found the track, but you lost the momentum, the vibe, the people around you...**
 
 ## 2. The solution
 
-**Encore** captures the setlist for you while you live your night. The pendant listens, the phone identifies in real time, and the next day you get the full memory of your night back: timestamped setlist, transitions, highlight moments, and the playlist ready in Apple Music or Spotify.
+**Encore is an intelligent pendant that captures your entire DJ set while you fully live the party.**
 
-One single gesture: you love what's playing, you tap the pendant, the track is pinned.
+The pendant listens discreetly while your phone identifies, understands, and organizes the music in real time. No need to unlock a screen, open an app, or interrupt the moment.
 
-The brain is your phone: **Gemma 4 running locally + an embedded recognition catalog**. Everything happens on-device; nothing goes to the cloud. For the hackathon we prepare a 3000-track catalog (Mathieu's collection, rarities included) that fits in a few tens of MB on the iPhone — proof that a serious local database needs zero server calls.
+**No screens. No interruptions. No cloud.**
 
-Positioning: **Shazam identifies tracks. Encore captures nights — in real time, without the cloud.**
+At the heart of Encore is **Gemma, a powerful local AI model running directly on your phone**. It understands context, connects moments, organizes tracks, detects highlights, and transforms raw music recognition into a meaningful memory of your night.
+
+It does not simply collect song titles.
+
+**It reconstructs the experience around them.**
+
+When a track means something, there is only one gesture:
+
+***Tap the pendant.***
+
+Encore instantly pins the moment, so you can return to it later without leaving the dance floor.
+
+Later, Encore lets you live the night *one more time*: a timestamped setlist, the transitions between tracks, your highlighted moments, the atmosphere of the room, and a complete playlist ready for Apple Music or Spotify.
+
+**All the intelligence lives on your phone. Nothing is sent to the cloud.**
+
+For the hackathon, we are building an embedded catalog of **3,000 tracks — including rare edits, bootlegs, and unreleased music — that fits within just a few dozen megabytes on an iPhone.**
+
+**No servers. No network dependency. No compromise on privacy.**
+
+Positioning: **Shazam identifies songs. Encore captures the emotion of the party — so you can live it encore and encore.**
 
 ## 3. Architecture
 
@@ -38,16 +68,16 @@ Positioning: **Shazam identifies tracks. Encore captures nights — in real time
   1. ShazamKit custom catalog (offline match)   pipeline/ = same logic in Python
   2. embeddings similarity                      data prep runs the night before
   3. ShazamKit world catalog (if online)
-  4. Gemma 4 E2B fiche ID (native audio in)
+  4. Gemma 4 E2B ID card (native audio in)
   journal -> recap -> MusicKit playlist
                                      [deferred, online only]
                                        SerpAPI lyrics/tracklist resolve
                                        iTunes/Spotify enrichment
 ```
 
-**The recognition ladder** (most precise → most robust): local fingerprint (ShazamKit custom catalog, 100% offline, 3–5 s) → embeddings similarity → Shazam world catalog (if online) → **Gemma fiche ID** (the model listens and describes what nothing else recognizes). Nothing is ever lost: every unknown keeps its clip, fingerprint, embedding and fiche for deferred resolution when network returns (SerpAPI lyrics/tracklist search, arbitrated by Gemma).
+**The recognition ladder** (most precise → most robust): local fingerprint (ShazamKit custom catalog, 100% offline, 3–5 s) → embeddings similarity → Shazam world catalog (if online) → **Gemma ID card** (the model listens and describes what nothing else recognizes). Nothing is ever lost: every unknown keeps its clip, fingerprint, embedding and ID card for deferred resolution when network returns (SerpAPI lyrics/tracklist search, arbitrated by Gemma).
 
-**Gemma 4 E2B is the permanent brain** (llama.cpp or Google AI Edge, on-iPhone): it detects and qualifies transitions, tags highlight moments from crowd volume + pins, produces structured fiche IDs for unknowns (BPM/key injected by DSP, never guessed), arbitrates deferred-resolution candidates, and writes the end-of-night recap.
+**Gemma 4 E2B is the permanent brain** (llama.cpp or Google AI Edge, on-iPhone): it detects and qualifies transitions, tags highlight moments from crowd volume + pins, produces structured ID cards for unknowns (BPM/key injected by DSP, never guessed), arbitrates deferred-resolution candidates, and writes the end-of-night recap.
 
 **Context engineering layer** (Alien Intelligence track): a two-stage context compiler keeps a small edge model useful — (1) the party state compressed into an ultra-compact structured representation, (2) ~50 KB of raw SERP JSON reduced to <1000 tokens of structured evidence. A benchmark (correct resolutions per context token) is the jury artifact.
 
@@ -66,7 +96,7 @@ Every module has its own README with how it works, its current status, and the t
 | `data/` | Catalog + demo set + golden clips (payloads gitignored; manifests committed) | [data/README.md](data/README.md) |
 | `demo/` | 5-minute demo script, test plan, backup HTML dashboard | [demo/README.md](demo/README.md) |
 | `hardware/` | 3D-printed case generator + STLs, wiring guide | [hardware/README.md](hardware/README.md) |
-| `docs/` | The full PRD ([PROPOSAL.md](docs/PROPOSAL.md), French) — product reference, edits are product decisions | — |
+| `docs/` | The full PRD ([PROPOSAL.md](docs/PROPOSAL.md)) — product reference, edits are product decisions | — |
 
 ## 5. Scaffold status (what's real today)
 
@@ -82,26 +112,26 @@ Full schedule in [`PLAN.md`](PLAN.md). The demo path is sacred:
 
 - **10:30** — audio frames land in the iOS app (gate 1)
 - **12:00** — local catalog match on a minimal timeline (gate 2)
-- **13:30** — pin event + Gemma fiche ID on an unknown clip (gate 3)
+- **13:30** — pin event + Gemma ID card on an unknown clip (gate 3)
 - **15:00** — **FREEZE**: recap + playlist work, demo rehearsed (gate 4). After freeze, `main` accepts demo fixes only; bonuses stay on branches.
 
 Miss a gate by >45 min → cut scope downward, never extend.
 
-**Must work**: pendant→iPhone streaming, local fingerprint, timeline, pin, Gemma fiche, recap, playlist.
+**Must work**: pendant→iPhone streaming, local fingerprint, timeline, pin, Gemma ID card, recap, playlist.
 **Bonus if time**: live SerpAPI resolution, context benchmark chart, embeddings stage, world-catalog stage.
 **Roadmap (cut without regret)**: autonomous listening (deep sleep + music-onset wake), multi-user, accounts, App Store, final enclosure, per-scene catalog packs (a 1M-track catalog would be 10–20 GB at ~15 KB/track; the real product answer is scene packs of a few hundred MB).
 
 ## 7. The demo (5 minutes)
 
-Full script: [`demo/demo_script.md`](demo/demo_script.md). Seven beats: passive recognition → **the Shazam duel** (rare bootleg + overlapped transition; a judge Shazams live and fails, Encore displays offline) → airplane mode → the pin → our unreleased beat (Gemma fiche ID, then live SerpAPI resolution) → *"Tu veux vivre Encore cette soirée?"* → recap + Apple Music playlist created in front of the jury.
+Full script: [`demo/demo_script.md`](demo/demo_script.md). Seven beats: passive recognition → **the Shazam duel** (rare bootleg + overlapped transition; a judge Shazams live and fails, Encore displays offline) → airplane mode → the pin → our unreleased beat (Gemma ID card, then live SerpAPI resolution) → *"Want to live this night Encore?"* → recap + Apple Music playlist created in front of the jury.
 
-Closing line: *"Shazam vous donne un titre. Encore vous rend votre soirée."*
+Closing line: *"Shazam gives you a title. Encore gives you back your night."*
 
 ## 8. Sponsor technologies
 
 | Sponsor | Use |
 |---|---|
-| **Gemma 4 (Google DeepMind)** | E2B local on iPhone, permanent brain: fiche IDs (native audio in), transitions, moments, recap, candidate arbitration. Native function calling + structured JSON output. |
+| **Gemma 4 (Google DeepMind)** | E2B local on iPhone, permanent brain: ID cards (native audio in), transitions, moments, recap, candidate arbitration. Native function calling + structured JSON output. |
 | **SerpAPI** | Deferred ID resolution (lyrics, YouTube, tracklists) + cultural enrichment of the recap (artwork, upcoming shows). |
 | **Alien Intelligence** | Context Engineering track: the two-stage context compiler + accuracy-per-token benchmark. |
 | **NVIDIA (optional)** | Server variant: same pipeline on Gemma 4 + vLLM for the multi-stream "whole club" case, only if time allows. |
