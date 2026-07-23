@@ -36,7 +36,7 @@ The physical pendant: a **3D rounded heart** — clean, minimalist, emoji-like s
 
 ## Print notes (42 fablab / LabElec)
 
-FDM **or resin**. FDM: print **both shells seam-face down** (the flat side on the bed) — the rounded outer faces then need no supports; allow light internal supports over the pocket ceiling of the front shell (hidden inside). 0.2 mm layers, 2–3 perimeters. Resin: hollow shells print as-is. **Print a test fit first** and tune `SLIP` / `RIDGE` in `pendant.py` — snap-fit tolerance is printer-dependent.
+FDM **or resin**. FDM orientation (expert-reviewed): **back shell prints on its OUTER back face** — its bottom edge is slope-capped (straight ≤60° chamfer blending into the round, `CHAMFER_DEG`) so it needs **zero supports**, cavity opening up. **Front shell prints seam-face down** (relief up, outer round self-supporting); allow light internal supports over its cavity ceiling only (hidden inside). 0.2 mm layers, 2–3 perimeters. Resin: as-is. **Print a test fit first** and tune `SLIP` / `RIDGE` — snap tolerance is printer-dependent.
 
 ## Tasks to be accomplished (before the 25th — Jade)
 

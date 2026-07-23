@@ -82,10 +82,27 @@ def heart_poly(width, n_ang=420):
                     for x, y in pts]).buffer(0)
 
 
+CHAMFER_DEG = 60.0                          # max printable overhang (expert advice)
+
+
 def inset_at(z):
-    """Outer-surface inset vs the seam silhouette: edge rounding + doming."""
+    """Outer-surface inset vs the seam silhouette: edge rounding + doming.
+    Front (z>0): full tangent round (prints seam-down, always self-supporting).
+    Back (z<0): the round is slope-capped — a straight <=60-deg chamfer takes
+    over near the back cap so the back shell prints flat on its OUTER face
+    with zero supports (expert-reviewed printing orientation)."""
     a = abs(z)
-    e = 0.0 if a <= H - EDGE_R else EDGE_R - np.sqrt(max(EDGE_R ** 2 - (a - (H - EDGE_R)) ** 2, 0))
+    if a <= H - EDGE_R:
+        e = 0.0
+    else:
+        sdist = a - (H - EDGE_R)
+        tmax = np.tan(np.radians(CHAMFER_DEG))
+        s60 = EDGE_R * np.sin(np.radians(CHAMFER_DEG))
+        if z > 0 or sdist <= s60:
+            e = EDGE_R - np.sqrt(max(EDGE_R ** 2 - sdist ** 2, 0))
+        else:
+            e60 = EDGE_R - np.sqrt(EDGE_R ** 2 - s60 ** 2)
+            e = e60 + tmax * (sdist - s60)
     return e + DOME * (z / H) ** 2
 
 
