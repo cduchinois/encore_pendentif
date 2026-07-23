@@ -396,10 +396,10 @@ def render(front, back, dummies, dims, out):
 
     panel(fig.add_subplot(2, 2, 1, projection="3d"),
           [(back, dgrey), (front, grey)],
-          "1 · closed — front view (raised pulse, bail)", 90, -90, 40)
+          "1 · closed — front view (raised pulse, bail)", 90, -90, 33)
     panel(fig.add_subplot(2, 2, 2, projection="3d"),
           [(back, dgrey), (front, grey)],
-          "1b · side view — thickness + seam between the shells", 0, -90, 40)
+          "1b · side view — thickness + seam between the shells", 0, -90, 33)
     fb = front.copy(); fb.apply_translation([0, 0, 36])
     lifted = []
     for m, c, ex in dummies.values():
@@ -407,9 +407,9 @@ def render(front, back, dummies, dims, out):
         lifted.append((mm, c))
     open_meshes = [(back, dgrey), (fb, grey)] + lifted
     panel(fig.add_subplot(2, 2, 3, projection="3d"),
-          open_meshes, "2 · open — two hollow shells + components", 24, -60, 48, 14)
+          open_meshes, "2 · open — two hollow shells + components", 24, -60, 40, 14)
     ax = fig.add_subplot(2, 2, 4, projection="3d")
-    panel(ax, [(back, dgrey), (front, grey)], "3 · profile + dimensions", 8, -32, 42)
+    panel(ax, [(back, dgrey), (front, grey)], "3 · profile + dimensions", 8, -32, 34)
     for tx, ty, s in [(.04, .90, f"width  {dims['width']} mm"),
                       (.04, .84, f"height {dims['height']} mm (incl. bail)"),
                       (.04, .78, f"depth  {dims['depth']} mm (+{dims['relief']} relief)"),
