@@ -48,6 +48,10 @@ DOME = 0.8                                  # gentle face doming
 WALL = 2.6                                  # min side wall at the seam
 FLOORS = 2.2                                # pocket floor/ceiling thickness
 FIT = 0.6                                   # pocket clearance around parts
+POCKET = "hollow"                           # "hollow": max slack, fix parts with foam
+                                            # "fitted": exact component pocket
+MIC_POS = (4.5, 6.2)                        # PDM mic offset from XIAO center —
+                                            # VERIFY on the real board, then adjust
 LIP_H, LIP_T = 2.2, 1.0                     # snap lip (on the back shell)
 RIDGE = 0.30                                # snap ridge / groove interference
 SLIP = 0.15                                 # radial slip clearance
@@ -183,6 +187,7 @@ def build():
     z_pcb0 = z_bat_top + TAPE                # base PCB underside (pins clipped)
     z_pcb_top = z_pcb0 + 1.1                 # base PCB top face
 
+    cavity_poly = heart.buffer(-WALL) if POCKET == "hollow" else pocket
     solid = loft_heart(heart)
     # bail: disc bridging the cleft, hole along Z, split later across shells
     cleft_y = max(p[1] for p in heart.exterior.coords if abs(p[0]) < 0.7)
@@ -198,7 +203,7 @@ def build():
 
     # hollow with the fitted pocket, then split at the seam plane z=0
     hollow = trimesh.boolean.difference(
-        [solid, tz(extrude_polygon(pocket, 2 * H - 2 * FLOORS), z_floor)])
+        [solid, tz(extrude_polygon(cavity_poly, 2 * H - 2 * FLOORS), z_floor)])
     half = 200
     back = trimesh.boolean.intersection(
         [hollow, tz(box(extents=[half, half, half]), -half / 2)])
@@ -206,21 +211,26 @@ def build():
         [hollow, tz(box(extents=[half, half, half]), half / 2)])
 
     # snap-fit: lip + ridge on the back, channel + groove in the front
-    lip = ring_prism(pocket.buffer(SLIP), pocket.buffer(SLIP + LIP_T), LIP_H, 0)
-    ridge = ring_prism(pocket.buffer(SLIP + LIP_T - 0.1),
-                       pocket.buffer(SLIP + LIP_T + RIDGE), 0.7, 0.8)
+    lip = ring_prism(cavity_poly.buffer(SLIP), cavity_poly.buffer(SLIP + LIP_T), LIP_H, 0)
+    ridge = ring_prism(cavity_poly.buffer(SLIP + LIP_T - 0.1),
+                       cavity_poly.buffer(SLIP + LIP_T + RIDGE), 0.7, 0.8)
     back = trimesh.boolean.union([back, lip, ridge])
-    channel = ring_prism(pocket.buffer(0), pocket.buffer(SLIP + LIP_T + SLIP),
+    channel = ring_prism(cavity_poly.buffer(0), cavity_poly.buffer(SLIP + LIP_T + SLIP),
                          LIP_H + 0.3, -0.05)
-    groove = ring_prism(pocket.buffer(SLIP + LIP_T - 0.1),
-                        pocket.buffer(SLIP + LIP_T + RIDGE + SLIP), 0.95, 0.72)
+    groove = ring_prism(cavity_poly.buffer(SLIP + LIP_T - 0.1),
+                        cavity_poly.buffer(SLIP + LIP_T + RIDGE + SLIP), 0.95, 0.72)
     # USB-C slot through the front wall, above the seam
     usb_slot = box(extents=[16, USB_W + 3.0, USB_H + 2.2])
     usb_slot.apply_translation([x_right + 8, yc, z_pcb_top + USB_H / 2 + 0.3])
     cuts = [channel, groove, usb_slot]
-    # mic holes over the Sense PDM mic
-    mic_c = (x_right - PCB_L / 2 + 4.5, yc + 6.2)
-    for dx, dy in [(0, 0), (2.6, -1.6), (-2.6, -1.6)]:
+    # mic: acoustic chamber recess inside the front shell spanning the whole
+    # plausible mic zone (exact mic XY unverified — chamber makes it non-critical),
+    # vented by a 5-hole cluster centered on the best-estimate position
+    mic_c = (x_right - PCB_L / 2 + MIC_POS[0], yc + MIC_POS[1])
+    chamber = box(extents=[16, 12, 1.4])
+    chamber.apply_translation([x_right - PCB_L / 2 + 1.5, yc + 3.5, H - FLOORS + 0.69])
+    cuts.append(chamber)
+    for dx, dy in [(0, 0), (2.4, 0), (-2.4, 0), (0, 2.4), (0, -2.4)]:
         hcyl = cylinder(radius=0.8, height=14, sections=48)
         hcyl.apply_translation([mic_c[0] + dx, mic_c[1] + dy, H - 2])
         cuts.append(hcyl)
@@ -260,15 +270,42 @@ def build():
     comps["bat_pouch"] = (rrect(bx_c + 1.5, by_c, BAT_L - 3.0, BAT_W, 1.5, BAT_T, z_floor + 0.05),
                           (.72, .72, .76), -0.5)
     comps["bat_tape"] = (bx(3.4, BAT_W, BAT_T + 0.2, bx_c - BAT_L / 2 + 1.7, by_c, z_floor), (.85, .68, .2), -0.5)
+    # final-assembly wiring: JST cut off, leads routed through the wire bay,
+    # up into the foam-tape layer, along under the board to the BAT pads
+    def tube(points, r):
+        segs = []
+        for p, q in zip(points[:-1], points[1:]):
+            p, q = np.array(p, float), np.array(q, float)
+            v = q - p
+            L = np.linalg.norm(v)
+            c = cylinder(radius=r, height=L, sections=20)
+            c.apply_transform(trimesh.geometry.align_vectors([0, 0, 1], v / L))
+            c.apply_translation((p + q) / 2)
+            segs.append(c)
+            j = trimesh.creation.icosphere(subdivisions=1, radius=r)
+            j.apply_translation(q)
+            segs.append(j)
+        return trimesh.boolean.union(segs)
+
     wz = z_floor + BAT_T / 2
-    for name, dy, col in (("wire_red", 1.1, (.78, .13, .1)), ("wire_black", -1.1, (.16, .16, .16))):
-        cyl = cylinder(radius=0.65, height=2.6, sections=24)
-        cyl.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
-        cyl.apply_translation([bx_c - BAT_L / 2 - 1.3, by_c + dy, wz])
-        comps[name] = (cyl, col, -0.5)
-    # JST-PHR-02 folded flat against the battery edge in the wire bay
-    comps["jst"] = (bx(2.9, 6.0, 3.0, bx_c - BAT_L / 2 - 4.1, by_c + 4.2, wz - 1.5),
-                    (.93, .93, .9), -0.5)
+    z_wire = z_pcb0 - 0.45                   # runs inside the foam-tape layer
+    for name, dy, pad_dy, col in (("wire_red", 1.1, 1.7, (.78, .13, .1)),
+                                  ("wire_black", -1.1, -1.7, (.16, .16, .16))):
+        pts = [(bx_c - BAT_L / 2, by_c + dy, wz),
+               (bx_c - BAT_L / 2 - 2.4, by_c + dy, wz),
+               (bx_c - BAT_L / 2 - 2.4, by_c + dy, z_wire),
+               (x_right - 4.2, yc + pad_dy, z_wire)]
+        comps[name] = (tube(pts, 0.62), col, -0.2)
+    # BAT+/BAT- pads on the XIAO underside + solder joints
+    pads2 = [bx(2.2, 1.6, 0.08, x_right - 3.4, yc + sgn * 1.7, z_pcb0 - 0.08) for sgn in (1, -1)]
+    comps["bat_pads"] = (trimesh.boolean.union(pads2), (.80, .66, .25), 0.25)
+    blobs = []
+    for sgn in (1, -1):
+        b2 = trimesh.creation.icosphere(subdivisions=2, radius=1.05)
+        b2.apply_scale([1, 1, 0.55])
+        b2.apply_translation([x_right - 3.4, yc + sgn * 1.7, z_pcb0 - 0.35])
+        blobs.append(b2)
+    comps["solder"] = (trimesh.boolean.union(blobs), (.88, .89, .92), -0.2)
     # XIAO ESP32-S3 Sense, camera removed, pins clipped flush
     g_pcb, g_gold = (.12, .40, .23), (.80, .66, .25)
     g_sil, g_dark = (.72, .74, .78), (.20, .20, .22)
@@ -408,7 +445,19 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
  <div>
   <button id="btnAnim">▶ open / close</button>
   <button id="btnSpin">↻ auto-rotate</button>
+  <button id="btnWire">🔧 wiring / solder</button>
  </div>
+</div>
+<div id="solder" style="display:none;position:fixed;right:14px;bottom:14px;width:340px;
+ background:#1b1b1bcc;border:1px solid #333;border-radius:10px;padding:12px 16px;
+ font-size:12px;line-height:1.65;color:#ccc">
+ <b>battery → XIAO soldering (shells hidden)</b><br>
+ 1 · cut the JST-PHR-02 off, trim leads to ~20 mm, strip 2 mm, tin them<br>
+ 2 · flip the XIAO: the two <b>BAT pads</b> (gold) are on the underside near the USB end<br>
+ 3 · tin both pads, then solder <b style="color:#e66">red → BAT+</b> and
+ <b>black → BAT−</b> (the shiny blobs) — polarity is critical<br>
+ 4 · leads run in the foam-tape layer between battery and board (the routed path shown)<br>
+ 5 · charging then works through the USB-C slot — the XIAO's charge IC does the rest
 </div>
 <script>
 "use strict";
@@ -434,26 +483,27 @@ gl.linkProgram(prog);gl.useProgram(prog);
 const loc={p:gl.getAttribLocation(prog,"p"),n:gl.getAttribLocation(prog,"n"),
  mvp:gl.getUniformLocation(prog,"mvp"),nm:gl.getUniformLocation(prog,"nm"),
  ez:gl.getUniformLocation(prog,"ez"),col:gl.getUniformLocation(prog,"col")};
-function buildPart(d){
- const v=new Float32Array(d.mesh.v), f=new Uint32Array(d.mesh.f);
- const n=new Float32Array(v.length);
- for(let i=0;i<f.length;i+=3){const a=3*f[i],b=3*f[i+1],c=3*f[i+2];
-  const ux=v[b]-v[a],uy=v[b+1]-v[a+1],uz=v[b+2]-v[a+2];
-  const wx=v[c]-v[a],wy=v[c+1]-v[a+1],wz=v[c+2]-v[a+2];
-  const nx=uy*wz-uz*wy,ny=uz*wx-ux*wz,nz=ux*wy-uy*wx;
-  for(const k of [a,b,c]){n[k]+=nx;n[k+1]+=ny;n[k+2]+=nz;}}
- for(let i=0;i<n.length;i+=3){const l=Math.hypot(n[i],n[i+1],n[i+2])||1;
-  n[i]/=l;n[i+1]/=l;n[i+2]/=l;}
+function buildPart(d,name){
+ // flat shading: expand triangles so coplanar faces shade uniformly (smooth flat front)
+ const iv=d.mesh.v, f=d.mesh.f, nT=f.length/3;
+ const v=new Float32Array(nT*9), n=new Float32Array(nT*9);
+ for(let t=0;t<nT;t++){
+  const a=3*f[3*t],b=3*f[3*t+1],c=3*f[3*t+2];
+  const ux=iv[b]-iv[a],uy=iv[b+1]-iv[a+1],uz=iv[b+2]-iv[a+2];
+  const wx=iv[c]-iv[a],wy=iv[c+1]-iv[a+1],wz=iv[c+2]-iv[a+2];
+  let nx=uy*wz-uz*wy,ny=uz*wx-ux*wz,nz=ux*wy-uy*wx;
+  const l=Math.hypot(nx,ny,nz)||1;nx/=l;ny/=l;nz/=l;
+  for(let k2=0;k2<3;k2++){
+   const src=[a,b,c][k2],o=t*9+k2*3;
+   v[o]=iv[src];v[o+1]=iv[src+1];v[o+2]=iv[src+2];
+   n[o]=nx;n[o+1]=ny;n[o+2]=nz;}}
  const bv=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bv);
  gl.bufferData(gl.ARRAY_BUFFER,v,gl.STATIC_DRAW);
  const bn=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bn);
- gl.bufferData(gl.ARRAY_BUFFER,n,gl.STATIC_DRAW);
- const bf=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,bf);
- gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,f,gl.STATIC_DRAW);
- return {bv,bn,bf,count:f.length,color:d.color,ex:d.ex};}
-gl.getExtension("OES_element_index_uint");
-const parts=Object.values(DATA).map(buildPart);
-let rx=-1.05,ry=0.0,dist=150,explode=0,spin=false,animT=null;
+ gl.bufferData(gl.ARRAY_BUFFER,bn===null?n:n,gl.STATIC_DRAW);
+ return {bv,bn,count:nT*3,color:d.color,ex:d.ex,name};}
+const parts=Object.entries(DATA).map(([k,d])=>buildPart(d,k));
+let rx=-1.05,ry=0.0,dist=150,explode=0,spin=false,animT=null,wireMode=false;
 const slider=document.getElementById("explode");
 function m4mul(a,b){const o=new Float32Array(16);
  for(let r=0;r<4;r++)for(let c=0;c<4;c++){let s=0;
@@ -478,18 +528,19 @@ function draw(){
   mv[0],mv[1],mv[2], mv[4],mv[5],mv[6], mv[8],mv[9],mv[10]]));
  const e=(1-explode)*26;
  for(const p of parts){
+  if(wireMode&&(p.name==="back"||p.name==="front"))continue;
   gl.uniform1f(loc.ez,p.ex*e);
   gl.uniform3fv(loc.col,p.color);
   gl.bindBuffer(gl.ARRAY_BUFFER,p.bv);
   gl.enableVertexAttribArray(loc.p);gl.vertexAttribPointer(loc.p,3,gl.FLOAT,false,0,0);
   gl.bindBuffer(gl.ARRAY_BUFFER,p.bn);
   gl.enableVertexAttribArray(loc.n);gl.vertexAttribPointer(loc.n,3,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p.bf);
-  gl.drawElements(gl.TRIANGLES,p.count,gl.UNSIGNED_INT,0);}
+  gl.drawArrays(gl.TRIANGLES,0,p.count);}
  requestAnimationFrame(draw);}
 slider.addEventListener("input",()=>{explode=+slider.value;});
 const q=new URLSearchParams(location.search);
 if(q.has("explode"))slider.value=q.get("explode");
+if(q.has("wiring"))setTimeout(()=>document.getElementById("btnWire").click(),50);
 explode=+slider.value;
 document.getElementById("btnAnim").onclick=()=>{
  const target=explode>0.5?0:1,start=explode,t0=performance.now();
@@ -498,6 +549,10 @@ document.getElementById("btnAnim").onclick=()=>{
   slider.value=explode;if(k<1)requestAnimationFrame(step);};
  requestAnimationFrame(step);};
 document.getElementById("btnSpin").onclick=()=>{spin=!spin;};
+document.getElementById("btnWire").onclick=()=>{
+ wireMode=!wireMode;
+ document.getElementById("solder").style.display=wireMode?"block":"none";
+ if(wireMode){explode=1;slider.value=1;dist=Math.min(dist,110);}};
 setInterval(()=>{if(spin)ry+=0.012;},16);
 let dragging=false,px=0,py=0;
 cv.addEventListener("pointerdown",e=>{dragging=true;px=e.clientX;py=e.clientY;});
