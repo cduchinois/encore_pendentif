@@ -37,12 +37,12 @@ from trimesh.creation import extrude_polygon, cylinder, box, triangulate_polygon
 BAT_L, BAT_W, BAT_T = 32.0, 20.5, 5.3       # LiPo LP502030, flat, at the back
 TAPE = 0.8
 PCB_L, PCB_W, PCB_T = 21.0, 17.8, 1.2       # XIAO ESP32-S3, pins clipped
-TOP_H = 3.4                                 # USB-C connector height
-USB_W, USB_H = 9.0, 3.4
-WIRE_GAP = 3.0
+SENSE_H = 7.5                               # PCB underside -> top of empty cam socket
+USB_W, USB_H = 8.94, 3.26                   # USB-C connector (on the base PCB)
+WIRE_GAP = 4.5                              # wire bay: leads + folded JST-PHR-02
 
 # ---------------- case ----------------
-H = 8.0                                     # half depth -> 16 mm closed
+H = 9.2                                     # half depth -> 18.4 mm closed
 EDGE_R = 4.2                                # edge rounding radius
 DOME = 0.8                                  # gentle face doming
 WALL = 2.6                                  # min side wall at the seam
@@ -180,7 +180,8 @@ def build():
     minx, miny, maxx, maxy = heart.bounds
     z_floor = -H + FLOORS
     z_bat_top = z_floor + BAT_T
-    z_pcb_top = z_bat_top + TAPE + PCB_T
+    z_pcb0 = z_bat_top + TAPE                # base PCB underside (pins clipped)
+    z_pcb_top = z_pcb0 + 1.1                 # base PCB top face
 
     solid = loft_heart(heart)
     # bail: disc bridging the cleft, hole along Z, split later across shells
@@ -214,11 +215,11 @@ def build():
     groove = ring_prism(pocket.buffer(SLIP + LIP_T - 0.1),
                         pocket.buffer(SLIP + LIP_T + RIDGE + SLIP), 0.95, 0.72)
     # USB-C slot through the front wall, above the seam
-    usb_slot = box(extents=[16, USB_W + 3.0, 4.9])
-    usb_slot.apply_translation([x_right + 8, yc, 0.55 + 4.9 / 2])
+    usb_slot = box(extents=[16, USB_W + 3.0, USB_H + 2.2])
+    usb_slot.apply_translation([x_right + 8, yc, z_pcb_top + USB_H / 2 + 0.3])
     cuts = [channel, groove, usb_slot]
     # mic holes over the Sense PDM mic
-    mic_c = (x_right - PCB_L / 2, yc + 4.5)
+    mic_c = (x_right - PCB_L / 2 + 4.5, yc + 6.2)
     for dx, dy in [(0, 0), (2.6, -1.6), (-2.6, -1.6)]:
         hcyl = cylinder(radius=0.8, height=14, sections=48)
         hcyl.apply_translation([mic_c[0] + dx, mic_c[1] + dy, H - 2])
@@ -243,26 +244,61 @@ def build():
     clip = tz(extrude_polygon(heart, 2 * H + 6), -H - 2)
     front = trimesh.boolean.intersection([front, clip])
 
-    # dummies (renders + viewer)
-    def rbox(g, h, z):
-        return tz(extrude_polygon(Polygon(g.exterior.coords), h), z)
-    d_bat = rbox(bat.buffer(-0.1), BAT_T, z_floor + 0.05)
-    d_pcb = rbox(board.buffer(-0.1), PCB_T, z_bat_top + TAPE)
-    d_usb = box(extents=[7.5, USB_W, USB_H])
-    d_usb.apply_translation([x_right - 3.75, yc, z_pcb_top + USB_H / 2])
-    dummies = {"battery": d_bat, "board": d_pcb, "usb": d_usb}
+    # ---------------- exact component models ----------------
+    def rrect(cx2, cy2, L, Wd, r, h, z):
+        p = shp_box(cx2 - L / 2, cy2 - Wd / 2, cx2 + L / 2, cy2 + Wd / 2) \
+            .buffer(-r).buffer(r, quad_segs=16)
+        return tz(extrude_polygon(p, h), z)
+
+    def bx(L, Wd, h, cx2, cy2, z):
+        b = box(extents=[L, Wd, h]); b.apply_translation([cx2, cy2, z + h / 2]); return b
+
+    bx_c, by_c = 0.0, yc                     # battery center (32 along x)
+    px_c = x_right - PCB_L / 2               # XIAO center x
+    comps = {}
+    # LP502030: pouch + PCM zone under Kapton at the wire end (left) + wires + JST
+    comps["bat_pouch"] = (rrect(bx_c + 1.5, by_c, BAT_L - 3.0, BAT_W, 1.5, BAT_T, z_floor + 0.05),
+                          (.72, .72, .76), -0.5)
+    comps["bat_tape"] = (bx(3.4, BAT_W, BAT_T + 0.2, bx_c - BAT_L / 2 + 1.7, by_c, z_floor), (.85, .68, .2), -0.5)
+    wz = z_floor + BAT_T / 2
+    for name, dy, col in (("wire_red", 1.1, (.78, .13, .1)), ("wire_black", -1.1, (.16, .16, .16))):
+        cyl = cylinder(radius=0.65, height=2.6, sections=24)
+        cyl.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
+        cyl.apply_translation([bx_c - BAT_L / 2 - 1.3, by_c + dy, wz])
+        comps[name] = (cyl, col, -0.5)
+    # JST-PHR-02 folded flat against the battery edge in the wire bay
+    comps["jst"] = (bx(2.9, 6.0, 3.0, bx_c - BAT_L / 2 - 4.1, by_c + 4.2, wz - 1.5),
+                    (.93, .93, .9), -0.5)
+    # XIAO ESP32-S3 Sense, camera removed, pins clipped flush
+    g_pcb, g_gold = (.12, .40, .23), (.80, .66, .25)
+    g_sil, g_dark = (.72, .74, .78), (.20, .20, .22)
+    base = rrect(px_c, yc, PCB_L, PCB_W, 2.2, 1.1, z_pcb0)
+    sense = rrect(px_c, yc, PCB_L, PCB_W, 2.2, 0.9, z_pcb0 + 3.5)
+    comps["x_pcbs"] = (trimesh.boolean.union([base, sense]), g_pcb, 0.25)
+    pads = [bx(15.3, 1.8, 0.08, px_c, yc + s2 * (PCB_W / 2 - 1.1), z_pcb_top) for s2 in (1, -1)]
+    comps["x_pads"] = (trimesh.boolean.union(pads), g_gold, 0.25)
+    comps["x_shield"] = (bx(13.2, 10.8, 2.0, px_c - 2.0, yc, z_pcb_top), g_sil, 0.25)
+    comps["x_usb"] = (bx(7.35, USB_W, USB_H, x_right - 7.35 / 2 + 1.2, yc, z_pcb_top), g_dark, 0.25)
+    small = [bx(2.6, 1.6, 0.8, x_right - 2.2, yc + s2 * 5.6, z_pcb_top) for s2 in (1, -1)]     # rst/boot
+    small.append(bx(2.6, 2.6, 1.4, px_c - PCB_L / 2 + 2.2, yc - 4.5, z_pcb_top))              # U.FL
+    small += [bx(2.0, 12.0, 2.4, px_c + s2 * 6.5, yc, z_pcb0 + 1.1) for s2 in (1, -1)]        # B2B
+    small.append(bx(8.5, 6.5, 2.8, px_c - 1.5, yc - 1.0, z_pcb0 + 4.4))                       # empty cam socket
+    small.append(bx(3.0, 2.0, 1.0, px_c + 4.5, yc + 6.2, z_pcb0 + 4.4))                       # PDM mic
+    comps["x_parts"] = (trimesh.boolean.union(small), g_dark, 0.25)
+    comps["x_sd"] = (bx(12.0, 12.0, 1.9, px_c - 2.5, yc + 3.0, z_pcb0 + 4.4), g_sil, 0.25)
+    dummies = {k: v[0] for k, v in comps.items()}
 
     dims = dict(width=round(maxx - minx, 1),
                 height=round((max(ring_c[1] + LOOP_RO, maxy)) - miny, 1),
                 depth=round(2 * H, 1), relief=PULSE_H,
                 hole=2 * LOOP_RI,
                 pocket_h=round(2 * H - 2 * FLOORS, 1),
-                stack=round(BAT_T + TAPE + PCB_T + TOP_H, 1))
+                stack=round(BAT_T + TAPE + SENSE_H, 1))
     print(f"heart {dims['width']} x {dims['height']} x {dims['depth']} mm "
           f"(+{PULSE_H} relief), bail hole Ø{dims['hole']}")
     print(f"pocket height {dims['pocket_h']} vs stack {dims['stack']} mm; "
-          f"USB slot z 0.55..5.45 (pcb top at {z_pcb_top:.1f})")
-    return front, back, dummies, dims
+          f"base PCB top at z={z_pcb_top:.2f}")
+    return front, back, comps, dims
 
 
 # ---------------- four views ----------------
@@ -290,8 +326,7 @@ def render(front, back, dummies, dims, out):
         ax.view_init(elev=elev, azim=azim); ax.set_title(title, fontsize=11)
 
     grey, dgrey = (.80, .81, .83), (.62, .63, .66)
-    sil, grn, blk = (.68, .68, .72), (.16, .45, .26), (.22, .22, .24)
-    comp = [(dummies["battery"], sil), (dummies["board"], grn), (dummies["usb"], blk)]
+    comp = [(m, c) for m, c, _ in dummies.values()]
     fig = plt.figure(figsize=(15, 12), dpi=110)
 
     panel(fig.add_subplot(2, 2, 1, projection="3d"),
@@ -300,8 +335,12 @@ def render(front, back, dummies, dims, out):
     panel(fig.add_subplot(2, 2, 2, projection="3d"),
           [(back, dgrey), (front, grey)],
           "1b · side view — thickness + seam between the shells", 0, -90, 40)
-    fb = front.copy(); fb.apply_translation([0, 0, 34])
-    open_meshes = [(back, dgrey), (fb, grey)] + comp
+    fb = front.copy(); fb.apply_translation([0, 0, 36])
+    lifted = []
+    for m, c, ex in dummies.values():
+        mm = m.copy(); mm.apply_translation([0, 0, 14 if ex > 0 else 6])
+        lifted.append((mm, c))
+    open_meshes = [(back, dgrey), (fb, grey)] + lifted
     panel(fig.add_subplot(2, 2, 3, projection="3d"),
           open_meshes, "2 · open — two hollow shells + components", 24, -60, 48, 14)
     ax = fig.add_subplot(2, 2, 4, projection="3d")
@@ -325,12 +364,11 @@ def write_viewer(front, back, dummies, dims, out):
         v = np.round(np.asarray(m.vertices), 2)
         return {"v": v.ravel().tolist(), "f": np.asarray(m.faces).ravel().tolist()}
     parts = {
-        "back":    {"mesh": pack(back), "color": [0.62, 0.63, 0.68], "ex": -1.0},
-        "front":   {"mesh": pack(front), "color": [0.82, 0.83, 0.86], "ex": 1.0},
-        "battery": {"mesh": pack(dummies["battery"]), "color": [0.72, 0.72, 0.76], "ex": -0.45},
-        "board":   {"mesh": pack(dummies["board"]), "color": [0.15, 0.5, 0.28], "ex": 0.25},
-        "usb":     {"mesh": pack(dummies["usb"]), "color": [0.2, 0.2, 0.22], "ex": 0.25},
+        "back":  {"mesh": pack(back), "color": [0.62, 0.63, 0.68], "ex": -1.0},
+        "front": {"mesh": pack(front), "color": [0.82, 0.83, 0.86], "ex": 1.0},
     }
+    for name, (m, c, ex) in dummies.items():
+        parts[name] = {"mesh": pack(m), "color": list(c), "ex": ex}
     html = VIEWER_TEMPLATE.replace("__DATA__", json.dumps(parts)) \
                           .replace("__DIMS__", json.dumps(dims))
     with open(out, "w") as fh:
