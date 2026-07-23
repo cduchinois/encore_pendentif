@@ -245,7 +245,7 @@ def build():
            (.32, .10), (.38, .02), (.50, .02)]
     line = LineString([(px * cw, py * cw * 0.62 + 1.0) for px, py in pts])
     pulse = line.buffer(1.5).intersection(cap.buffer(-1.2)).buffer(0)
-    base = tz(extrude_polygon(pulse.buffer(0.45), H - 1.5), 0)          # chamfer step
+    base = tz(extrude_polygon(pulse.buffer(0.30), H - 1.5), 0)          # chamfer step
     top = tz(extrude_polygon(pulse, H + PULSE_H), 0)
     front = trimesh.boolean.union([front, trimesh.boolean.intersection(
         [trimesh.boolean.union([base, top]),
@@ -253,6 +253,11 @@ def build():
     # re-clip relief flanks to the outer silhouette so nothing juts sideways
     clip = tz(extrude_polygon(heart, 2 * H + 6), -H - 2)
     front = trimesh.boolean.intersection([front, clip])
+    # touch electrode (option 1): hollow the wall behind the pulse to a ~1.05 mm
+    # membrane; copper tape glues into this recess -> wire -> GPIO1 (T1)
+    touch_recess_poly = pulse.buffer(1.2).buffer(0)
+    touch_recess = tz(extrude_polygon(touch_recess_poly, 1.15), H - FLOORS - 0.01)
+    front = trimesh.boolean.difference([front, touch_recess])
 
     # ---------------- exact component models ----------------
     def rrect(cx2, cy2, L, Wd, r, h, z):
@@ -323,6 +328,14 @@ def build():
     small.append(bx(3.0, 2.0, 1.0, px_c + 4.5, yc + 6.2, z_pcb0 + 4.4))                       # PDM mic
     comps["x_parts"] = (trimesh.boolean.union(small), g_dark, 0.25)
     comps["x_sd"] = (bx(12.0, 12.0, 1.9, px_c - 2.5, yc + 3.0, z_pcb0 + 4.4), g_sil, 0.25)
+    # copper tape electrode in the pulse recess (glued to the membrane) + lead to GPIO1
+    foil = tz(extrude_polygon(pulse.buffer(1.0).buffer(0), 0.12), H - FLOORS + 1.0)
+    comps["copper_tape"] = (foil, (.78, .48, .20), 1.0)
+    fminx, fminy, fmaxx, fmaxy = pulse.bounds
+    gpio1 = (px_c - PCB_L / 2 + 2.2, yc - PCB_W / 2 + 1.6, z_pcb_top + 0.1)
+    comps["touch_wire"] = (tube([(fminx + 2.0, (fminy + fmaxy) / 2, H - FLOORS + 0.9),
+                                 (fminx + 2.0, (fminy + fmaxy) / 2, 3.0),
+                                 gpio1], 0.5), (.85, .72, .25), 0.6)
     dummies = {k: v[0] for k, v in comps.items()}
 
     dims = dict(width=round(maxx - minx, 1),
@@ -437,7 +450,10 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
 <canvas id="c"></canvas>
 <div id="hud"><h1>Encore pendant — assembly</h1>
  <p>drag = rotate · wheel/pinch = zoom · slider = open/close</p>
- <p>two snap-fit shells · XIAO ESP32-S3 (no camera, pins clipped) + LiPo 502030</p></div>
+ <p>two snap-fit shells · XIAO ESP32-S3 (no camera, pins clipped) + LiPo 502030</p>
+ <p style="color:#d98b3c"><b>orange sheet = copper tape</b> — the touch electrode, glued
+ inside the recess behind the pulse (membrane 1.05 mm); <b style="color:#cbb14a">yellow
+ wire</b> → GPIO1 (T1). Tap the pulse = pin.</p></div>
 <div id="dims"></div>
 <div id="panel">
  <label>open ⇠⇢ assemble</label>
@@ -457,7 +473,11 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
  3 · tin both pads, then solder <b style="color:#e66">red → BAT+</b> and
  <b>black → BAT−</b> (the shiny blobs) — polarity is critical<br>
  4 · leads run in the foam-tape layer between battery and board (the routed path shown)<br>
- 5 · charging then works through the USB-C slot — the XIAO's charge IC does the rest
+ 5 · charging then works through the USB-C slot — the XIAO's charge IC does the rest<br>
+ 6 · <b style="color:#d98b3c">touch</b>: copper tape (orange) pressed into the pulse
+ recess of the front shell, yellow lead soldered to <b>GPIO1 (T1)</b> top-side
+ through-hole — the pulse relief becomes the pin button (double tap = pin,
+ long press = privacy)
 </div>
 <script>
 "use strict";
