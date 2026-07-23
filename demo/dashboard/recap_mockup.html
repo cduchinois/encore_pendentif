@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encore · Récap de soirée (mockup)</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --page:        #0d0d0d;
+    --surface-1:   #1a1a19;
+    --surface-2:   #232322;
+    --ink:         #ffffff;
+    --ink-2:       #c3c2b7;
+    --muted:       #898781;
+    --grid:        #2c2c2a;
+    --baseline:    #383835;
+    --border:      rgba(255,255,255,0.10);
+    --energy:      #3987e5;   /* série unique : énergie */
+    --pin:         #d55181;   /* accent pins / moments */
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #060606;
+    color: var(--ink);
+    display: flex; justify-content: center; padding: 32px 12px;
+  }
+  /* ---------- cadre téléphone ---------- */
+  .phone {
+    width: 390px; background: var(--page);
+    border: 1px solid var(--border); border-radius: 44px;
+    padding: 14px 14px 22px; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    overflow: hidden;
+  }
+  .notch { width: 120px; height: 26px; background:#000; border-radius: 14px; margin: 0 auto 10px; }
+  .screen { border-radius: 30px; overflow: hidden; background: var(--page); }
+
+  /* ---------- header ---------- */
+  header { padding: 20px 20px 6px; }
+  .brand { font-size: 12px; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; }
+  h1 { font-size: 24px; font-weight: 700; margin-top: 6px; }
+  .sub { color: var(--ink-2); font-size: 13px; margin-top: 3px; }
+
+  .kpis { display: flex; gap: 8px; padding: 14px 20px 4px; }
+  .kpi {
+    flex: 1; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px 12px;
+  }
+  .kpi .v { font-size: 20px; font-weight: 700; }
+  .kpi .l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .kpi .v .pin-ico { font-size: 14px; vertical-align: 2px; }
+
+  /* ---------- carte énergie ---------- */
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 16px; margin: 12px 20px 0; padding: 14px 14px 10px;
+  }
+  .card h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .card .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .chart-wrap { position: relative; margin-top: 10px; }
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .tooltip {
+    position: absolute; pointer-events: none; display: none;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 9px; font-size: 11px; color: var(--ink);
+    white-space: nowrap; transform: translate(-50%, -110%); z-index: 3;
+  }
+  .tooltip .t { color: var(--muted); }
+
+  /* ---------- timeline ---------- */
+  .tl-head { display:flex; align-items:baseline; justify-content:space-between; padding: 22px 20px 8px; }
+  .tl-head h2 { font-size: 15px; font-weight: 700; }
+  .tl-head span { font-size: 11px; color: var(--muted); }
+
+  .timeline { position: relative; margin: 0 20px; padding-left: 56px; }
+  .timeline::before {
+    content:""; position:absolute; left: 46px; top: 6px; bottom: 6px;
+    width: 2px; background: var(--baseline); border-radius: 1px;
+  }
+  .entry { position: relative; padding: 0 0 14px; }
+  .entry .time {
+    position: absolute; left: -56px; top: 14px; width: 40px;
+    font-size: 11px; color: var(--muted); text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .entry .dot {
+    position: absolute; left: -13px; top: 18px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--ink-2); border: 2px solid var(--page);
+  }
+  .track {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 14px; padding: 11px 13px;
+  }
+  .track .title { font-size: 14px; font-weight: 650; }
+  .track .artist { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+  .track .meta { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+  /* pin */
+  .entry.pinned .dot { background: var(--pin); width: 10px; height: 10px; left: -14px; }
+  .entry.pinned .track { border-color: var(--pin); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    padding: 2px 8px; border-radius: 999px; margin-bottom: 6px;
+  }
+  .badge.pin { color: var(--pin); border: 1px solid var(--pin); }
+  .badge.id { color: var(--ink-2); border: 1px dashed var(--muted); }
+  .badge.live { color: #0ca30c; border: 1px solid #0ca30c; }
+
+  /* transition entre deux morceaux */
+  .transition {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--muted); padding: 2px 0 12px 2px;
+  }
+  .transition .glyph { font-size: 13px; color: var(--ink-2); }
+
+  /* moment fort */
+  .moment {
+    border: 1px solid var(--border); border-left: 3px solid var(--pin);
+    background: linear-gradient(90deg, rgba(213,81,129,.10), transparent 60%), var(--surface-1);
+    border-radius: 14px; padding: 11px 13px;
+  }
+  .moment .title { font-size: 13px; font-weight: 700; }
+  .moment .desc { font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+
+  /* fiche ID */
+  .idcard .title { color: var(--ink-2); font-style: italic; }
+  .idcard .gemma { font-size: 12px; color: var(--ink-2); margin-top: 5px; line-height: 1.45; }
+  .idcard .gemma b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- CTA ---------- */
+  .cta {
+    margin: 18px 20px 20px; display: block; width: calc(100% - 40px);
+    background: var(--ink); color: #0b0b0b; border: none;
+    font-size: 15px; font-weight: 700; padding: 14px; border-radius: 999px;
+    font-family: inherit;
+  }
+  .cta-sub { text-align: center; font-size: 11px; color: var(--muted); margin: -12px 0 18px; }
+</style>
+</head>
+<body>
+<div class="phone"><div class="notch"></div><div class="screen">
+
+  <header>
+    <div class="brand">Encore · Récap</div>
+    <h1>Soirée du 25 juillet</h1>
+    <div class="sub">23:12 → 03:47 · La Machine du Moulin Rouge</div>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">47</div><div class="l">morceaux</div></div>
+    <div class="kpi"><div class="v"><span class="pin-ico">📌</span> 6</div><div class="l">pins</div></div>
+    <div class="kpi"><div class="v">01:34</div><div class="l">pic d'énergie</div></div>
+  </div>
+
+  <!-- ================= COURBE D'ÉNERGIE ================= -->
+  <div class="card">
+    <h2>Énergie de la salle</h2>
+    <div class="hint">volume + réaction de la foule, mesurés par le pendentif</div>
+    <div class="chart-wrap">
+      <svg id="energy" viewBox="0 0 330 130" width="100%" role="img"
+           aria-label="Courbe d'énergie de la soirée de 23h12 à 3h47, pic à 1h34">
+        <defs>
+          <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3987e5" stop-opacity=".32"/>
+            <stop offset="1" stop-color="#3987e5" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <!-- grille -->
+        <g stroke="#2c2c2a" stroke-width="1">
+          <line x1="8" y1="30" x2="322" y2="30"/>
+          <line x1="8" y1="65" x2="322" y2="65"/>
+        </g>
+        <!-- aire + ligne (générées en JS) -->
+        <path id="area" fill="url(#fill)"/>
+        <path id="line" fill="none" stroke="#3987e5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <!-- baseline -->
+        <line x1="8" y1="100" x2="322" y2="100" stroke="#383835" stroke-width="1"/>
+        <!-- marqueurs pins (identité portée par icône + libellé, pas seulement la couleur) -->
+        <g id="pins" font-size="9" fill="#d55181" text-anchor="middle"></g>
+        <!-- crosshair -->
+        <line id="cross" y1="18" y2="100" stroke="#898781" stroke-width="1" stroke-dasharray="2 3" visibility="hidden"/>
+        <circle id="dot" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2" visibility="hidden"/>
+        <!-- axe temps -->
+        <g font-size="9" fill="#898781" text-anchor="middle">
+          <text x="8"   y="114">23h</text>
+          <text x="76"  y="114">00h</text>
+          <text x="145" y="114">01h</text>
+          <text x="214" y="114">02h</text>
+          <text x="283" y="114">03h</text>
+          <text x="322" y="114">04h</text>
+        </g>
+        <!-- annotation du pic -->
+        <g font-size="9" fill="#c3c2b7">
+          <text x="184" y="14" text-anchor="middle">pic · 01:34</text>
+        </g>
+      </svg>
+      <div class="tooltip" id="tip"></div>
+    </div>
+  </div>
+
+  <!-- ================= TIMELINE ================= -->
+  <div class="tl-head">
+    <h2>La setlist</h2><span>extrait · 01:21 → 01:52</span>
+  </div>
+
+  <div class="timeline">
+
+    <div class="entry">
+      <div class="time">01:21</div><div class="dot"></div>
+      <div class="track">
+        <div class="title">Purple Noise</div>
+        <div class="artist">Boston Bun</div>
+        <div class="meta">126 BPM · A min · reconnu en 4,2 s</div>
+      </div>
+      <div class="transition" style="padding-top:10px"><span class="glyph">⇄</span> blend long 32 s, +2 BPM</div>
+    </div>
+
+    <div class="entry pinned">
+      <div class="time">01:28</div><div class="dot"></div>
+      <div class="track">
+        <span class="badge pin">📌 PINNÉ</span>
+        <div class="title">On My Mind (Purple Disco Machine Remix)</div>
+        <div class="artist">Diplo &amp; SIDEPIECE</div>
+        <div class="meta">124 BPM · vous avez tapé le pendentif à 01:29:12</div>
+      </div>
+      <div class="transition" style="padding-top:10px"><span class="glyph">✂</span> cut sec sur le drop</div>
+    </div>
+
+    <div class="entry">
+      <div class="time">01:34</div><div class="dot" style="background:#d55181"></div>
+      <div class="moment">
+        <div class="title">🔥 Moment fort · la salle explose</div>
+        <div class="desc">Volume de foule +9 dB pendant 40 s. Double tap détecté. C'est le pic de la soirée.</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="time">01:41</div><div class="dot"></div>
+      <div class="track idcard">
+        <span class="badge id">ID ? · non identifié</span>
+        <div class="title">Track inconnu nº3</div>
+        <div class="gemma">Fiche Gemma : <b>techno mélodique</b>, voix féminine, <b>~124 BPM</b>, refrain entendu : <i>« something in the water »</i>. Clip de 20 s sauvegardé, résolution lancée dès le retour du réseau.</div>
+      </div>
+      <div class="transition" style="padding-top:10px"><span class="glyph">⇄</span> blend 18 s</div>
+    </div>
+
+    <div class="entry">
+      <div class="time">01:52</div><div class="dot"></div>
+      <div class="track">
+        <span class="badge live">✓ RÉSOLU VIA SERPAPI</span>
+        <div class="title">Water Signs</div>
+        <div class="artist">Confidence Man</div>
+        <div class="meta">retrouvé par recherche de paroles · liens Spotify + Apple Music ajoutés</div>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="cta">▶ Créer la playlist Apple Music</button>
+  <div class="cta-sub">47 morceaux, dans l'ordre du set, vos pins en tête</div>
+
+</div></div>
+
+<script>
+  // ---- données de la courbe (heure décimale 23.2 → 3.78, énergie 0..1) ----
+  const pts = [
+    [23.2,.18],[23.5,.26],[23.8,.24],[0.1,.35],[0.4,.42],[0.7,.40],
+    [1.0,.55],[1.2,.62],[1.35,.70],[1.47,.78],[1.57,.96],[1.7,.88],
+    [1.9,.72],[2.2,.66],[2.5,.74],[2.8,.60],[3.1,.48],[3.4,.38],[3.78,.30]
+  ];
+  const pinsAt = [ [0.42,'📌'], [1.47,'📌'], [1.57,'📌'], [2.52,'📌'] ];
+
+  const X0=8, X1=322, Y0=100, Y1=22, T0=23.2, T1=27.78; // heures continues
+  const hx = h => { const t = h < 20 ? h+24 : h; return X0 + (t-T0)/(T1-T0)*(X1-X0); };
+  const ey = e => Y0 - e*(Y0-Y1);
+
+  let d='';
+  pts.forEach((p,i)=>{ d += (i?'L':'M') + hx(p[0]).toFixed(1) + ' ' + ey(p[1]).toFixed(1) + ' '; });
+  document.getElementById('line').setAttribute('d', d);
+  document.getElementById('area').setAttribute('d', d + `L${X1} ${Y0} L${X0} ${Y0} Z`);
+
+  const pg = document.getElementById('pins');
+  pinsAt.forEach(([h])=>{
+    const x = hx(h);
+    pg.innerHTML += `<line x1="${x}" y1="96" x2="${x}" y2="103" stroke="#d55181" stroke-width="2"/>`
+                 +  `<text x="${x}" y="93">📌</text>`;
+  });
+
+  // ---- hover : crosshair + tooltip ----
+  const svg = document.getElementById('energy'), tip = document.getElementById('tip'),
+        cross = document.getElementById('cross'), dot = document.getElementById('dot');
+  const fmt = h => { const t = h<20 ? h+24 : h, H = Math.floor(t)%24, M = Math.round((t%1)*60);
+                     return String(H).padStart(2,'0')+':'+String(M).padStart(2,'0'); };
+  svg.addEventListener('pointermove', ev=>{
+    const r = svg.getBoundingClientRect();
+    const x = (ev.clientX - r.left) / r.width * 330;
+    if (x < X0 || x > X1) return hide();
+    let best = pts[0], bd = 1e9;
+    for (const p of pts){ const dd = Math.abs(hx(p[0])-x); if (dd<bd){bd=dd;best=p;} }
+    const px = hx(best[0]), py = ey(best[1]);
+    cross.setAttribute('x1',px); cross.setAttribute('x2',px); cross.setAttribute('visibility','visible');
+    dot.setAttribute('cx',px); dot.setAttribute('cy',py); dot.setAttribute('visibility','visible');
+    tip.style.display='block';
+    tip.style.left = (px/330*100)+'%'; tip.style.top = (py/130*100)+'%';
+    tip.innerHTML = `<span class="t">${fmt(best[0])}</span> · énergie ${(best[1]*100)|0} %`;
+  });
+  const hide = ()=>{ tip.style.display='none'; cross.setAttribute('visibility','hidden'); dot.setAttribute('visibility','hidden'); };
+  svg.addEventListener('pointerleave', hide);
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.env
+data/catalog/*
+!data/catalog/.gitkeep
+data/samples/*
+!data/samples/.gitkeep
+*.mp3
+*.m4a
+*.wav
+*.flac
+__pycache__/
+.DS_Store
+ios/build/
+firmware/.pio/
+*.xcuserdatad

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Encore session journal (the night)",
+  "type": "object",
+  "required": ["session_id", "started_at", "events"],
+  "properties": {
+    "session_id": {"type": "string"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "events": {"type": "array", "items": {"type": "object",
+      "required": ["ts_ms", "kind"],
+      "properties": {
+        "ts_ms": {"type": "integer"},
+        "kind": {"enum": ["track_match", "id_card", "pin", "moment", "transition", "privacy_on", "privacy_off"]},
+        "track_id": {"type": ["integer", "null"], "description": "catalog.sqlite id when matched"},
+        "source": {"enum": ["local_catalog", "embedding", "world_catalog", "gemma", null]},
+        "id_card": {"$ref": "id_card.schema.json"},
+        "transition_style": {"type": ["string", "null"], "description": "e.g. blend_32s, hard_cut"},
+        "note": {"type": ["string", "null"]}
+      }}},
+    "energy": {"type": "array", "items": {"type": "object",
+      "required": ["ts_ms", "level"],
+      "properties": {"ts_ms": {"type": "integer"}, "level": {"type": "number", "minimum": 0, "maximum": 1}}}}
+  }
+}
