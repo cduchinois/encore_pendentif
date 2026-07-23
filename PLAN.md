@@ -11,7 +11,7 @@ PRD: docs/PROPOSAL.md. Board: GitHub issues, milestone "Demo freeze 15h".
 - 09:00 setup, sponsors talked to (Alien Intelligence API!), issues assigned
 - 10:30 audio frames land in the iOS app (visible waveform)   [gate 1]
 - 12:00 local catalog match shows on a minimal timeline        [gate 2]
-- 13:30 pin event + Gemma fiche ID on unknown clip             [gate 3]
+- 13:30 pin event + Gemma ID card on unknown clip             [gate 3]
 - 15:00 FREEZE: recap + playlist work; demo rehearsed once     [gate 4]
 - 15:00+ bonuses only, on branches: SerpAPI live resolve, context benchmark,
          LED ambiance polish, embeddings stage, world-catalog stage

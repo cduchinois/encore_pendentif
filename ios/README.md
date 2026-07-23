@@ -17,12 +17,12 @@ Everything intelligent runs here, on-device: audio receive, the 4-stage recognit
 |---|---|---|
 | `Audio/UDPAudioReceiver.swift` | Listen on `:7777`, unpack `AUDIO`/`EVENT`/`HEARTBEAT` packets per [pendant_protocol.md](../contracts/pendant_protocol.md), ring buffer + debug waveform, send `CMD_LED` back | 1 (10:30) |
 | `Recognition/ShazamKitMatcher.swift` | Load `.shazamsignature` files from the catalog build into an `SHCustomCatalog`; offline match in 3–5 s | 2 (12:00) |
-| `Recognition/RecognitionStage.swift` | The ladder: local catalog → embeddings (bonus) → world catalog (bonus) → Gemma fiche ID; every unknown keeps clip + fingerprint + fiche | 2–3 |
+| `Recognition/RecognitionStage.swift` | The ladder: local catalog → embeddings (bonus) → world catalog (bonus) → Gemma ID card; every unknown keeps clip + fingerprint + ID card | 2–3 |
 | `Gemma/LlamaRunner.swift` | Gemma 4 E2B local runtime; structured JSON output validated against [id_card.schema.json](../contracts/id_card.schema.json); prompt in `Gemma/prompts/id_card.md` (BPM injected by DSP, never guessed) | 3 (13:30) |
 | `Gemma/ContextCompiler.swift` | Swift twin of `pipeline/context/compiler.py`: compact party state (setlist tail, BPM curve, crowd, pins) feeding every Gemma call | 3–4 |
-| `Journal/SessionStore.swift` | Append-only session journal per [journal.schema.json](../contracts/journal.schema.json): matches, fiches, pins, moments, transitions, energy curve | 2+ |
+| `Journal/SessionStore.swift` | Append-only session journal per [journal.schema.json](../contracts/journal.schema.json): matches, ID cards, pins, moments, transitions, energy curve | 2+ |
 | `UI/TimelineView.swift` | The projected dashboard: live timeline, pins, energy — design reference in [demo/dashboard/recap_mockup.html](../demo/dashboard/recap_mockup.html) | 2 |
-| `Playlist/MusicKitExporter.swift` | "Tu veux vivre Encore cette soirée?" → recap (Gemma) + playlist in Apple Music, pins first | 4 (15:00) |
+| `Playlist/MusicKitExporter.swift` | "Want to live this night Encore?" → recap (Gemma) + playlist in Apple Music, pins first | 4 (15:00) |
 | `Resolve/SerpAPIClient.swift` | Bonus: deferred resolution client when WiFi returns (mirrors `pipeline/resolve/`) | bonus |
 
 ## Tasks to be accomplished (day-of, in gate order)
@@ -31,7 +31,7 @@ Everything intelligent runs here, on-device: audio receive, the 4-stage recognit
 - [ ] ShazamKit custom catalog matching on the prepared signatures (gate 2).
 - [ ] Journal + timeline UI per schema + mockup (gate 2).
 - [ ] Pin end-to-end: `EVENT(1)` → journal pin → UI badge → `CMD_LED` flash (gate 3).
-- [ ] Gemma runner + fiche ID on an unknown clip — output MUST validate the schema (gate 3).
+- [ ] Gemma runner + ID card on an unknown clip — output MUST validate the schema (gate 3).
 - [ ] Recap generation from compiled party state + energy curve (gate 4).
 - [ ] MusicKit playlist export (gate 4).
 - [ ] Bonus, on branches: embeddings stage, world-catalog stage, SerpAPI client, background BLE mode.

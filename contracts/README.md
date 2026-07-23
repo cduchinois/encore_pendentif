@@ -13,7 +13,7 @@ Binary packets over WiFi/UDP (iPhone hotspot), BLE fallback, little-endian.
 - Behavioral rules: while PRIVACY_ON the pendant sends nothing but HEARTBEAT; nothing is acked — recognition needs seconds of audio, not every frame.
 - Consumers: `firmware/src/main.cpp` (packing) and `ios/Encore/Audio/UDPAudioReceiver.swift` (unpacking).
 
-### [`id_card.schema.json`](id_card.schema.json) — the Gemma "fiche ID" for an unknown track
+### [`id_card.schema.json`](id_card.schema.json) — the Gemma ID card for an unknown track
 What the model must emit when the whole recognition ladder fails: genre, description, has_vocals, confidence, ts_start_ms (required) + lyrics_snippet, key, clip_ref. **`bpm` is injected from DSP (librosa), never guessed by the model** — the prompt in `ios/Encore/Gemma/prompts/id_card.md` enforces the same rule. `additionalProperties: false` keeps Gemma's structured output strict.
 - Consumers: iOS Gemma runner (output validation), `pipeline/resolve/serp_resolver.py` (input), tests.
 
@@ -23,7 +23,7 @@ One session = id, start/end, an `events` array (kinds: `track_match`, `id_card`,
 
 ## How it's verified
 
-`pipeline/tests/test_contracts.py` checks both schemas are valid Draft 2020-12 and validates an example fiche. The full test plan ([demo/TESTPLAN.md](../demo/TESTPLAN.md)) additionally requires: every Gemma output validates against the id_card schema, every journal write validates against the journal schema, and Swift/Python protocol constants match this protocol doc.
+`pipeline/tests/test_contracts.py` checks both schemas are valid Draft 2020-12 and validates an example ID card. The full test plan ([demo/TESTPLAN.md](../demo/TESTPLAN.md)) additionally requires: every Gemma output validates against the id_card schema, every journal write validates against the journal schema, and Swift/Python protocol constants match this protocol doc.
 
 ## Tasks to be accomplished
 

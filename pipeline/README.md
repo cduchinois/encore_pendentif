@@ -30,7 +30,7 @@ Shared shape with the Swift `ContextCompiler` — same output, two languages, co
 `context_bench.py`: N resolution cases with ground truth; arm A = small model + compiled evidence, arm B = big model + raw SERP JSON; metric = correct resolutions per context token. One table + one chart.
 
 ### `tests/` — WORKING (minimal)
-`test_contracts.py` validates both JSON schemas and an example fiche.
+`test_contracts.py` validates both JSON schemas and an example ID card.
 
 ## Tasks to be accomplished
 

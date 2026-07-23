@@ -6,6 +6,6 @@ Setup: BT speaker, demo set from the catalog, pendant worn, iPhone dashboard pro
 3. (KEY) The duel: rare bootleg, then overlapped transition. A judge Shazams live, online. Shazam fails; Encore displays, offline.
 4. (30s) Airplane mode: everything keeps working. "No data leaves the room."
 5. (30s) Double tap at the drop -> LED flash -> pinned on timeline. Long press -> LED off, privacy answered before it is asked.
-6. (1min) Our unreleased beat: fiche ID Gemma (genre, BPM, lyrics). WiFi back on -> SerpAPI resolution fires live.
-7. (30s) "Tu veux vivre Encore cette soirée?" -> recap + Apple Music playlist created in front of the jury.
-Closing line: "Shazam vous donne un titre. Encore vous rend votre soirée."
+6. (1min) Our unreleased beat: Gemma ID card (genre, BPM, lyrics). WiFi back on -> SerpAPI resolution fires live.
+7. (30s) "Want to live this night Encore?" -> recap + Apple Music playlist created in front of the jury.
+Closing line: "Shazam gives you a title. Encore gives you back your night."

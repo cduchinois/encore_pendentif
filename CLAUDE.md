@@ -16,7 +16,7 @@ Full PRD: `docs/PROPOSAL.md`. Day plan: `PLAN.md`. Demo: `demo/demo_script.md`.
   1. ShazamKit custom catalog (offline match)   pipeline/ = same logic in Python
   2. embeddings similarity                      data prep runs the night before
   3. ShazamKit world catalog (if online)
-  4. Gemma 4 E2B fiche ID (native audio in)
+  4. Gemma 4 E2B ID card (native audio in)
   journal -> recap -> MusicKit playlist
                                      [deferred, online only]
                                        SerpAPI lyrics/tracklist resolve

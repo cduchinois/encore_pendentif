@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Gemma fiche ID for an unrecognized track",
+  "title": "Gemma ID card for an unrecognized track",
   "type": "object",
   "required": ["genre", "description", "has_vocals", "confidence", "ts_start_ms"],
   "properties": {
