@@ -245,11 +245,12 @@ def build():
            (.32, .10), (.38, .02), (.50, .02)]
     line = LineString([(px * cw, py * cw * 0.62 + 1.0) for px, py in pts])
     pulse = line.buffer(1.5).intersection(cap.buffer(-1.2)).buffer(0)
-    base = tz(extrude_polygon(pulse.buffer(0.30), H - 1.5), 0)          # chamfer step
-    top = tz(extrude_polygon(pulse, H + PULSE_H), 0)
-    front = trimesh.boolean.union([front, trimesh.boolean.intersection(
-        [trimesh.boolean.union([base, top]),
-         tz(box(extents=[half, half, half]), half / 2)])])
+    # relief anchored 1 mm INTO the face only — never into the interior
+    # (v2 extruded from the lid plane; carried into v3 it filled the cavity
+    # with pulse-shaped columns and collided with the Sense board)
+    base = tz(extrude_polygon(pulse.buffer(0.35), 1.0 + PULSE_H - 0.45), H - 1.0)
+    top = tz(extrude_polygon(pulse, 1.0 + PULSE_H), H - 1.0)
+    front = trimesh.boolean.union([front, base, top])
     # re-clip relief flanks to the outer silhouette so nothing juts sideways
     clip = tz(extrude_polygon(heart, 2 * H + 6), -H - 2)
     front = trimesh.boolean.intersection([front, clip])
