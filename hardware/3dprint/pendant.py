@@ -376,14 +376,19 @@ def render(front, back, dummies, dims, out):
     def panel(ax, meshes, title, elev, azim, r=42, zc=0):
         allf, allc = [], []
         light = np.array([.35, .25, .9]); light = light / np.linalg.norm(light)
+        alln = []
         for mesh, color in meshes:
             f = mesh.vertices[mesh.faces]
             lam = .45 + .55 * np.clip(mesh.face_normals @ light, 0, 1)
             allf.append(f)
+            alln.append(mesh.face_normals)
             allc.append(np.clip(np.array(color) * lam[:, None], 0, 1))
         F = np.concatenate(allf); C = np.concatenate(allc)
+        N = np.concatenate(alln)
         el, az = np.radians(elev), np.radians(azim)
         view = np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
+        keep = N @ view > -0.02          # cull back-faces: hidden interiors
+        F, C = F[keep], C[keep]          # cannot bleed through the sort
         order = np.argsort(F.mean(axis=1) @ view)
         # edges painted like the faces: kills the anti-aliasing hairlines that
         # read as "rays" across flat surfaces in the PNG render
@@ -399,7 +404,7 @@ def render(front, back, dummies, dims, out):
 
     panel(fig.add_subplot(2, 2, 1, projection="3d"),
           [(back, dgrey), (front, grey)],
-          "1 · closed — front view (raised pulse, bail)", 64, -90, 33)
+          "1 · closed — front view (raised pulse, bail)", 72, -90, 33)
     panel(fig.add_subplot(2, 2, 2, projection="3d"),
           [(back, dgrey), (front, grey)],
           "1b · side view — thickness + seam between the shells", 0, -90, 33)
