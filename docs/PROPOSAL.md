@@ -28,7 +28,7 @@ Positioning: **Shazam identifies tracks, Encore captures nights — in real time
 
 ### The hardware
 
-- **Pendant**: Seeed XIAO ESP32-S3 Sense (built-in PDM mic), round heart-shaped 3D-printed case (STL files ready: `encore_body.stl` + `encore_lid.stl`, ≈48.5 × 51 × 16 mm, raised pulse-wave relief on the front, integrated bail loop for the chain, mic holes, USB-C slot to charge without opening).
+- **Pendant**: Seeed XIAO ESP32-S3 Sense (built-in PDM mic), 3D rounded-heart case in two snap-fit shells (STL files ready: `encore_front.stl` + `encore_back.stl`, ≈52 × 55 × 16 mm, raised pulse-wave relief on the front, integrated Ø5.5 hanging hole, mic holes, USB-C slot to charge without opening).
 - **Ambiance LED**: one WS2812B (NeoPixel, ~2 euros, 3 wires) behind the frosted case: the pendant changes color with the room's mood (calm blue → warm pink/red, pulses on the drop), white flash on pin. Driven locally (sound level + bass) or by the iPhone via the party state. Private mode = everything off, unambiguous.
 - **Power**: 3.7 V 500-600 mAh LiPo (matchbox-sized, ~10 g) soldered to the BAT pads; charging circuit built into the XIAO, USB-C recharge. No-solder option: a mini USB-C power bank inside the case.
 - **Interaction, one single touch zone** (ESP32-S3 capacitive touch, copper pad on the front face): **double tap = pin the track** (LED flash), **long press = private mode** (listening cut, LED off). Highlight moments are detected automatically from crowd volume — no gesture needed.

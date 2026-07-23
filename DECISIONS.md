@@ -9,3 +9,4 @@
 - 2026-07-23 Heart-shaped case replaces the round puck: pulse-wave engraving = the product story worn on the chest; USB-C slot so it charges closed.
 - 2026-07-23 Components stacked (LiPo flat, XIAO on top, USB at right wall), not side-by-side: smallest heart face (58 mm vs ~70 mm); XIAO header pins clipped flush, camera removed.
 - 2026-07-23 Case v2 after design review: round implicit-curve heart (48.5 mm, roomier than the boxy construction) and the pulse as raised relief like the ref jewel — lid becomes a drop-in plate in a rim rebate so the relief prints flat without supports.
+- 2026-07-23 Case v3: true 3D rounded heart (lofted, soft edges) split into two snap-fit shells at a mid-depth seam — no lid; fitted pocket, perimeter ridge/groove snap, Ø5.5 integrated bail hole; interactive viewer.html + four_views.png as design artifacts.
