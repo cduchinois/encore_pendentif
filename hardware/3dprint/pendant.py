@@ -55,7 +55,7 @@ MIC_POS = (4.5, 6.2)                        # PDM mic offset from XIAO center �
 LIP_H, LIP_T = 2.2, 1.0                     # snap lip (on the back shell)
 RIDGE = 0.30                                # snap ridge / groove interference
 SLIP = 0.15                                 # radial slip clearance
-PULSE_H = 1.0                               # relief above the front face
+ENGRAVE = 1.2                               # pulse engraving depth in the face
 LOOP_RO, LOOP_RI, LOOP_T = 5.5, 2.75, 6.0   # bail: Ø11 disc, Ø5.5 hole
 
 N_SLICE, N_PTS = 40, 170                    # loft resolution
@@ -87,10 +87,10 @@ CHAMFER_DEG = 60.0                          # max printable overhang (expert adv
 
 def inset_at(z):
     """Outer-surface inset vs the seam silhouette: edge rounding + doming.
-    Front (z>0): full tangent round (prints seam-down, always self-supporting).
-    Back (z<0): the round is slope-capped — a straight <=60-deg chamfer takes
-    over near the back cap so the back shell prints flat on its OUTER face
-    with zero supports (expert-reviewed printing orientation)."""
+    Symmetric on both sides: the round is slope-capped — a straight <=60-deg
+    chamfer takes over near each cap, so BOTH shells print flat on their
+    OUTER faces with zero supports and identical bed-side finish (unified
+    orientation so the joined halves match)."""
     a = abs(z)
     if a <= H - EDGE_R:
         e = 0.0
@@ -98,7 +98,7 @@ def inset_at(z):
         sdist = a - (H - EDGE_R)
         tmax = np.tan(np.radians(CHAMFER_DEG))
         s60 = EDGE_R * np.sin(np.radians(CHAMFER_DEG))
-        if z > 0 or sdist <= s60:
+        if sdist <= s60:
             e = EDGE_R - np.sqrt(max(EDGE_R ** 2 - sdist ** 2, 0))
         else:
             e60 = EDGE_R - np.sqrt(EDGE_R ** 2 - s60 ** 2)
@@ -253,7 +253,9 @@ def build():
         cuts.append(hcyl)
     front = trimesh.boolean.difference([front] + cuts)
 
-    # raised pulse relief, centered on the flat zone of the front face
+    # ENGRAVED pulse (v3.2): the face prints against the bed -> the engraving
+    # comes out crisp and the wall under it thins to ~1.0 mm, so the copper
+    # electrode senses through it (no separate inner recess needed)
     cap = heart.buffer(-inset_at(H))
     cminx, _, cmaxx, _ = cap.bounds
     cw = cmaxx - cminx
@@ -262,20 +264,8 @@ def build():
            (.32, .10), (.38, .02), (.50, .02)]
     line = LineString([(px * cw, py * cw * 0.62 + 1.0) for px, py in pts])
     pulse = line.buffer(1.5).intersection(cap.buffer(-1.2)).buffer(0)
-    # relief anchored 1 mm INTO the face only — never into the interior
-    # (v2 extruded from the lid plane; carried into v3 it filled the cavity
-    # with pulse-shaped columns and collided with the Sense board)
-    base = tz(extrude_polygon(pulse.buffer(0.35), 1.0 + PULSE_H - 0.45), H - 1.0)
-    top = tz(extrude_polygon(pulse, 1.0 + PULSE_H), H - 1.0)
-    front = trimesh.boolean.union([front, base, top])
-    # re-clip relief flanks to the outer silhouette so nothing juts sideways
-    clip = tz(extrude_polygon(heart, 2 * H + 6), -H - 2)
-    front = trimesh.boolean.intersection([front, clip])
-    # touch electrode (option 1): hollow the wall behind the pulse to a ~1.05 mm
-    # membrane; copper tape glues into this recess -> wire -> GPIO1 (T1)
-    touch_recess_poly = pulse.buffer(1.2).buffer(0)
-    touch_recess = tz(extrude_polygon(touch_recess_poly, 1.15), H - FLOORS - 0.01)
-    front = trimesh.boolean.difference([front, touch_recess])
+    engrave = tz(extrude_polygon(pulse, ENGRAVE + 0.5), H - ENGRAVE)
+    front = trimesh.boolean.difference([front, engrave])
 
     # ---------------- exact component models ----------------
     def rrect(cx2, cy2, L, Wd, r, h, z):
@@ -347,11 +337,11 @@ def build():
     comps["x_parts"] = (trimesh.boolean.union(small), g_dark, 0.25)
     comps["x_sd"] = (bx(12.0, 12.0, 1.9, px_c - 2.5, yc + 3.0, z_pcb0 + 4.4), g_sil, 0.25)
     # copper tape electrode in the pulse recess (glued to the membrane) + lead to GPIO1
-    foil = tz(extrude_polygon(pulse.buffer(1.0).buffer(0), 0.12), H - FLOORS + 1.0)
+    foil = tz(extrude_polygon(pulse.buffer(1.0).buffer(0), 0.12), H - FLOORS - 0.15)
     comps["copper_tape"] = (foil, (.78, .48, .20), 1.0)
     fminx, fminy, fmaxx, fmaxy = pulse.bounds
     gpio1 = (px_c - PCB_L / 2 + 2.2, yc - PCB_W / 2 + 1.6, z_pcb_top + 0.1)
-    comps["touch_wire"] = (tube([(fminx + 2.0, (fminy + fmaxy) / 2, H - FLOORS + 0.9),
+    comps["touch_wire"] = (tube([(fminx + 2.0, (fminy + fmaxy) / 2, H - FLOORS - 0.3),
                                  (fminx + 2.0, (fminy + fmaxy) / 2, 3.0),
                                  gpio1], 0.5), (.85, .72, .25), 0.6)
     # 2.4 GHz FPC WiFi antenna: glued flat under the front ceiling, upper band
@@ -372,12 +362,12 @@ def build():
 
     dims = dict(width=round(maxx - minx, 1),
                 height=round((max(ring_c[1] + LOOP_RO, maxy)) - miny, 1),
-                depth=round(2 * H, 1), relief=PULSE_H,
+                depth=round(2 * H, 1), engrave=ENGRAVE,
                 hole=2 * LOOP_RI,
                 pocket_h=round(2 * H - 2 * FLOORS, 1),
                 stack=round(BAT_T + TAPE + SENSE_H, 1))
     print(f"heart {dims['width']} x {dims['height']} x {dims['depth']} mm "
-          f"(+{PULSE_H} relief), bail hole Ø{dims['hole']}")
+          f"(pulse engraved {ENGRAVE} mm), bail hole Ø{dims['hole']}")
     print(f"pocket height {dims['pocket_h']} vs stack {dims['stack']} mm; "
           f"base PCB top at z={z_pcb_top:.2f}")
     return front, back, comps, dims
@@ -421,7 +411,7 @@ def render(front, back, dummies, dims, out):
 
     panel(fig.add_subplot(2, 2, 1, projection="3d"),
           [(back, dgrey), (front, grey)],
-          "1 · closed — front view (raised pulse, bail)", 72, -90, 33)
+          "1 · closed — front view (engraved pulse, bail)", 72, -90, 33)
     panel(fig.add_subplot(2, 2, 2, projection="3d"),
           [(back, dgrey), (front, grey)],
           "1b · side view — thickness + seam between the shells", 0, -90, 33)
@@ -437,7 +427,7 @@ def render(front, back, dummies, dims, out):
     panel(ax, [(back, dgrey), (front, grey)], "3 · profile + dimensions", 8, -32, 34)
     for tx, ty, s in [(.04, .90, f"width  {dims['width']} mm"),
                       (.04, .84, f"height {dims['height']} mm (incl. bail)"),
-                      (.04, .78, f"depth  {dims['depth']} mm (+{dims['relief']} relief)"),
+                      (.04, .78, f"depth  {dims['depth']} mm (pulse engraved {dims['engrave']} mm)"),
                       (.04, .72, f"bail hole Ø{dims['hole']} mm"),
                       (.04, .66, f"pocket height {dims['pocket_h']} mm / stack {dims['stack']} mm")]:
         ax.text2D(tx, ty, s, transform=ax.transAxes, fontsize=11)
@@ -492,7 +482,7 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
  <p>drag = rotate · wheel/pinch = zoom · slider = open/close</p>
  <p>two snap-fit shells · XIAO ESP32-S3 (no camera, pins clipped) + LiPo 502030</p>
  <p style="color:#d98b3c"><b>orange sheet = copper tape</b> — the touch electrode, glued
- inside the recess behind the pulse (membrane 1.05 mm); <b style="color:#cbb14a">yellow
+ inside the recess behind the pulse (1.0 mm wall under the engraving); <b style="color:#cbb14a">yellow
  wire</b> → GPIO1 (T1). Tap the pulse = pin.</p>
  <p><b>black sheet = 2.4 GHz FPC WiFi antenna</b> — glued under the front ceiling,
  upper band: away from the copper (detuning), the mic chamber and the battery.
@@ -517,8 +507,8 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
  <b>black → BAT−</b> (the shiny blobs) — polarity is critical<br>
  4 · leads run in the foam-tape layer between battery and board (the routed path shown)<br>
  5 · charging then works through the USB-C slot — the XIAO's charge IC does the rest<br>
- 6 · <b style="color:#d98b3c">touch</b>: copper tape (orange) pressed into the pulse
- recess of the front shell, yellow lead soldered to <b>GPIO1 (T1)</b> top-side
+ 6 · <b style="color:#d98b3c">touch</b>: copper tape (orange) glued behind the engraved pulse
+ inside the front shell, yellow lead soldered to <b>GPIO1 (T1)</b> top-side
  through-hole — the pulse relief becomes the pin button (double tap = pin,
  long press = privacy)<br>
  7 · <b>antenna</b>: click the U.FL plug flat onto the board BEFORE placing it in
@@ -531,7 +521,7 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
 const DATA = __DATA__, DIMS = __DIMS__;
 document.getElementById("dims").innerHTML =
  `<b>dimensions</b><br>width ${DIMS.width} mm<br>height ${DIMS.height} mm (incl. bail)`+
- `<br>depth ${DIMS.depth} mm (+${DIMS.relief} relief)<br>bail hole Ø${DIMS.hole} mm`+
+ `<br>depth ${DIMS.depth} mm · pulse engraved ${DIMS.engrave} mm<br>bail hole Ø${DIMS.hole} mm`+
  `<br>pocket ${DIMS.pocket_h} mm / stack ${DIMS.stack} mm`;
 const cv = document.getElementById("c"), gl = cv.getContext("webgl", {antialias:true});
 const VS=`attribute vec3 p;attribute vec3 n;uniform mat4 mvp;uniform mat3 nm;
