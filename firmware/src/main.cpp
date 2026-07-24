@@ -30,6 +30,7 @@ static const int PIN_TOUCH = T1;                   // copper pad on GPIO1
 static const int PIN_LED   = 2;                    // WS2812B data
 
 // ---------- gestures ----------
+#define TOUCH_DEBUG 1                              // 1 = print touch readings every 500 ms
 static const uint32_t TAP_MAX_MS    = 350;
 static const uint32_t DOUBLE_TAP_MS = 400;
 static const uint32_t LONG_PRESS_MS = 1200;
@@ -133,7 +134,18 @@ void pollTouch() {
   static bool down = false; static bool longFired = false;
   static uint32_t downAt = 0, lastTapAt = 0;
   uint32_t now = millis();
-  bool pressed = touchRead(PIN_TOUCH) > touchBaseline + touchBaseline / 2;
+  uint32_t raw = touchRead(PIN_TOUCH);
+  bool pressed = raw > touchBaseline + touchBaseline / 2;
+#if TOUCH_DEBUG
+  static uint32_t lastDbg = 0;
+  if (now - lastDbg >= 500) {
+    lastDbg = now;
+    Serial.printf("touch raw=%lu baseline=%lu threshold=%lu %s\n",
+                  (unsigned long)raw, (unsigned long)touchBaseline,
+                  (unsigned long)(touchBaseline + touchBaseline / 2),
+                  pressed ? "<== PRESSED" : "");
+  }
+#endif
 
   if (pressed && !down) { down = true; longFired = false; downAt = now; }
 
