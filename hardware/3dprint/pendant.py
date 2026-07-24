@@ -458,12 +458,33 @@ def write_viewer(front, back, dummies, dims, out):
     for name, (m, c, ex) in dummies.items():
         parts[name] = {"mesh": pack(m), "color": list(c), "ex": ex}
     import os
+    CLIP_K = 0.78                            # clip scale: wire 6x10 -> 4.7x7.8,
+                                             # diagonal 9.1 < bail hole 9.8
+    clip_y_top = dims["bail_y"]
+    clip_path = "third_party/chainclip.stl"
+    if os.path.exists(clip_path):
+        cl = trimesh.load(clip_path)
+        # drop the 0.6 mm print base plate, keep the two snap halves
+        halves = [b for b in cl.split(only_watertight=False) if b.extents[2] > 2]
+        cl = trimesh.util.concatenate(halves)
+        lo, hi = cl.bounds
+        cl.apply_translation([-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -(lo[2] + hi[2]) / 2])
+        cl.apply_scale(CLIP_K)
+        cl.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
+        cl.apply_translation([0, dims["bail_y"] + 12.2, 0])
+        parts["clip"] = {"mesh": pack(cl), "color": [0.58, 0.63, 0.72], "ex": 0.0}
+        clip_y_top = dims["bail_y"] + 27.0
+        # scaled printable copy next to the original (same license: stays local)
+        pr = trimesh.load(clip_path)
+        pr.apply_scale(CLIP_K)
+        pr.export("third_party/encore_clip_scaled78.stl")
+        print("viewer: clip embedded (x0.78); printable copy -> third_party/encore_clip_scaled78.stl")
     chain_path = "third_party/cuban_chain_64cm.stl"
     if os.path.exists(chain_path):
         ch = trimesh.load(chain_path)
         lo, hi = ch.bounds
         ch.apply_translation([-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -(lo[2] + hi[2]) / 2])
-        ch.apply_translation([0, dims["bail_y"] + ch.extents[1] / 2 - 11, 0])
+        ch.apply_translation([0, clip_y_top + ch.extents[1] / 2 - 10, 0])
         parts["chain"] = {"mesh": pack(ch), "color": [0.70, 0.71, 0.74], "ex": 0.0}
         print("viewer: cuban chain embedded,", len(ch.faces), "faces")
     html = VIEWER_TEMPLATE.replace("__DATA__", json.dumps(parts)) \
@@ -604,7 +625,7 @@ function draw(){
  const e=(1-explode)*26;
  for(const p of parts){
   if(wireMode&&(p.name==="back"||p.name==="front"))continue;
-  if(p.name==="chain"&&(!chainVisible||wireMode))continue;
+  if((p.name==="chain"||p.name==="clip")&&(!chainVisible||wireMode))continue;
   gl.uniform1f(loc.ez,p.ex*e);
   gl.uniform3fv(loc.col,p.color);
   gl.bindBuffer(gl.ARRAY_BUFFER,p.bv);
