@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <driver/i2s.h>
+#include <driver/touch_sensor.h>
 #include <Adafruit_NeoPixel.h>
 
 #if !__has_include("secrets.h")
@@ -135,6 +136,15 @@ void pollTouch() {
   static uint32_t downAt = 0, lastTapAt = 0;
   uint32_t now = millis();
   uint32_t raw = touchRead(PIN_TOUCH);
+  // a live sensor always jitters; bit-identical reads for ~10 s = touch FSM stuck
+  static uint32_t lastRaw = 0; static uint16_t sameCount = 0;
+  if (raw == lastRaw) {
+    if (++sameCount >= 500) {
+      sameCount = 0;
+      Serial.println("touch frozen — restarting touch FSM");
+      touch_pad_fsm_stop(); touch_pad_fsm_start();
+    }
+  } else { lastRaw = raw; sameCount = 0; }
   bool pressed = raw > touchBaseline + (touchBaseline * 2) / 5;   // +40%, tuned on real pad
 #if TOUCH_DEBUG
   static uint32_t lastDbg = 0;
