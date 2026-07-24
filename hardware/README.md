@@ -18,6 +18,8 @@ The physical pendant: a **3D rounded heart** — clean, minimalist, emoji-like s
 
 ## Views & interactive model
 
+- **`encore_chain.stl`** (`python pendant.py --chain`) — the matching necklace: a **print-in-place closed-loop chain**, 94 interlocked rings (Ø10 mm, Ø2.3 wire) tilted ±38°, **640 mm circumference** — matinee length, slips over the head (max adult head circ ≈575 mm), **no clasp = nothing to break**; the pendant threads onto it through its Ø5.5 bail. Prints flat as a Ø216 mm circle (needs a ≥220 mm bed; shrink `CHAIN_LOOP` for smaller printers), slight supports under the tilted rings, links free after a gentle twist. Link clearance is checked numerically at generation (0.87 mm).
+- `python pendant.py --portrait` → **`portrait_scale.png`** — human-scale wearing view: 164 cm figure (INSEE average French adult woman; man 177 cm), pendant hanging 33 cm below the chin at mid-chest (ideal mic position), chest zoom with true-scale chain + pendant, and a 3D close-up of the chain links.
 - `python pendant.py --render` → **`four_views.png`**: 1 closed front · 1b side (thickness + seam) · 2 open shells + components · 3 profile + dimensions.
 - `python pendant.py --viewer` → **`viewer.html`**: self-contained interactive 3D (no network needed) — drag to rotate, wheel to zoom, slider/button to **open and assemble** the shells with the exact components. The **🔧 wiring/solder button** hides the shells and shows the battery→XIAO connection with the routed leads, BAT pads, solder joints and step-by-step instructions. `?explode=0` starts open, `?wiring=1` starts in wiring view.
 

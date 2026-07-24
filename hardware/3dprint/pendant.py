@@ -60,6 +60,14 @@ LOOP_RO, LOOP_RI, LOOP_T = 5.5, 2.75, 6.0   # bail: Ø11 disc, Ø5.5 hole
 
 N_SLICE, N_PTS = 40, 170                    # loft resolution
 
+# ---------------- chain (print-in-place necklace loop) ----------------
+CHAIN_LOOP = 640.0                          # closed-loop circumference, mm:
+                                            # slips over the head (~575 mm max
+                                            # head circ + margin), matinee drop
+LINK_R, LINK_r = 5.0, 1.15                  # link ring: centerline R, wire r
+LINK_TILT = 38.0                            # alternate ring tilt (deg)
+LINK_PITCH = 6.8                            # center spacing along the loop
+
 
 def heart_poly(width, n_ang=420):
     """Implicit heart, ray-sampled, scaled to `width`, bbox-centered."""
@@ -622,10 +630,182 @@ requestAnimationFrame(draw);
 """
 
 
+def portrait(dims, out):
+    """Human-scale wearing view: average French adult woman (164 cm, INSEE;
+    man 177 cm) wearing the pendant on the 640 mm closed-loop chain."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Ellipse, Polygon as MplPoly
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+    HGT = 164.0                              # cm — INSEE average adult woman
+    loop_cm = CHAIN_LOOP / 10
+    chin, clav = 145.0, 133.5
+    neck_hw = 5.5
+    front_half = (loop_cm - 19.0) / 2        # ~19 cm rides around the neck/back
+    drop = np.sqrt(max(front_half ** 2 - neck_hw ** 2, 1))
+    bail_y = clav - drop
+    pw, ph = dims["width"] / 10, dims["height"] / 10
+    pend_c = bail_y - ph / 2 + 0.4
+
+    half = [(2.0, 138.0), (6.0, 137.0), (19.0, 133.0), (21.5, 106.0), (20.5, 85.0),
+            (19.5, 76.0), (17.5, 77.0), (18.0, 86.0), (16.5, 122.0), (13.5, 103.0),
+            (18.0, 86.0), (15.5, 55.0), (13.5, 45.0), (12.5, 25.0), (10.0, 5.0),
+            (13.0, 0.0), (5.0, 0.0), (6.0, 5.0), (4.5, 45.0), (2.5, 70.0), (1.0, 83.0)]
+    body = half + [(-x, y) for x, y in reversed(half)]
+
+    fig = plt.figure(figsize=(15, 9), dpi=110)
+
+    # ---- panel A: full body at true scale ----
+    axA = fig.add_subplot(1, 3, 1)
+    axA.add_patch(MplPoly(body, closed=True, facecolor="#cfd2d6", edgecolor="none"))
+    axA.add_patch(Ellipse((0, 155.5), 17.5, 21, facecolor="#cfd2d6", edgecolor="none"))
+    for sgn in (1, -1):
+        t = np.linspace(0, 1, 40)
+        xs = sgn * neck_hw * (1 - t) + 0.0 * t
+        ys = (clav + 2) * (1 - t) + bail_y * t - 3.0 * np.sin(np.pi * t) * 0.4
+        axA.plot(xs, ys, color="#6b6e73", lw=1.4)
+    hp = np.asarray(heart_poly(pw, n_ang=160).exterior.coords)
+    axA.add_patch(MplPoly(np.c_[hp[:, 0], hp[:, 1] + pend_c], closed=True,
+                          facecolor="#8f939a", edgecolor="#5c5f64", lw=0.8))
+    axA.annotate("", xy=(-30, 0), xytext=(-30, HGT),
+                 arrowprops=dict(arrowstyle="<->", lw=1))
+    axA.text(-31.5, HGT / 2, f"{HGT:.0f} cm\nfemme adulte,\nmoyenne France (INSEE)\n(homme: 177 cm)",
+             ha="right", va="center", fontsize=9)
+    axA.annotate("", xy=(8, bail_y), xytext=(8, chin),
+                 arrowprops=dict(arrowstyle="<->", lw=1, color="#c0392b"))
+    axA.text(9, (bail_y + chin) / 2, f"{chin - bail_y:.0f} cm\nsous le menton",
+             fontsize=9, color="#c0392b", va="center")
+    axA.set_xlim(-45, 32); axA.set_ylim(-4, 172)
+    axA.set_aspect("equal"); axA.axis("off")
+    axA.set_title(f"portee — chaine boucle {loop_cm:.0f} cm (matinee)", fontsize=11)
+
+    # ---- panel B: chest zoom ----
+    axB = fig.add_subplot(1, 3, 2)
+    axB.add_patch(MplPoly(body, closed=True, facecolor="#e3e5e8", edgecolor="none"))
+    for sgn in (1, -1):
+        t = np.linspace(0, 1, 60)
+        xs = sgn * neck_hw * (1 - t)
+        ys = (clav + 2) * (1 - t) + bail_y * t - 3.0 * np.sin(np.pi * t) * 0.4
+        axB.plot(xs, ys, color="#6b6e73", lw=3)
+        for k in range(0, 58, 3):
+            axB.add_patch(Ellipse((xs[k], ys[k]), 0.9, 0.55,
+                                  angle=np.degrees(np.arctan2(ys[min(k + 3, 59)] - ys[k],
+                                                              xs[min(k + 3, 59)] - xs[k])),
+                                  facecolor="none", edgecolor="#4a4d52", lw=1.0))
+    hp2 = np.asarray(heart_poly(pw, n_ang=240).exterior.coords)
+    axB.add_patch(MplPoly(np.c_[hp2[:, 0], hp2[:, 1] + pend_c], closed=True,
+                          facecolor="#b9bcc2", edgecolor="#5c5f64", lw=1.2))
+    cap = heart_poly(pw, n_ang=160).buffer(-0.45)
+    cminx, _, cmaxx, _ = cap.bounds
+    cw = cmaxx - cminx
+    pp = [(-.50, .02), (-.30, .02), (-.24, .11), (-.17, -.07), (-.10, .02),
+          (-.03, .02), (.03, .37), (.11, -.33), (.17, .02), (.26, .02),
+          (.32, .10), (.38, .02), (.50, .02)]
+    px = [a * cw for a, b in pp]; py = [b * cw * 0.62 + 0.1 + pend_c for a, b in pp]
+    axB.plot(px, py, color="#5c5f64", lw=2)
+    axB.annotate("", xy=(-pw / 2, pend_c - ph / 2 - 1.6), xytext=(pw / 2, pend_c - ph / 2 - 1.6),
+                 arrowprops=dict(arrowstyle="<->", lw=1))
+    axB.text(0, pend_c - ph / 2 - 2.6, f"{dims['width']} mm", ha="center", fontsize=9)
+    axB.annotate("", xy=(pw / 2 + 1.6, pend_c - ph / 2), xytext=(pw / 2 + 1.6, pend_c + ph / 2),
+                 arrowprops=dict(arrowstyle="<->", lw=1))
+    axB.text(pw / 2 + 2.4, pend_c, f"{dims['height']} mm", va="center", fontsize=9)
+    axB.set_xlim(-14, 15); axB.set_ylim(pend_c - 10, clav + 6)
+    axB.set_aspect("equal"); axB.axis("off")
+    axB.set_title("zoom poitrine — pendentif + chaine a l'echelle", fontsize=11)
+
+    # ---- panel C: chain segment 3D ----
+    axC = fig.add_subplot(1, 3, 3, projection="3d")
+    proto = trimesh.creation.torus(major_radius=LINK_R, minor_radius=LINK_r,
+                                   major_sections=40, minor_sections=12)
+    seg = []
+    for i in range(8):
+        m = proto.copy()
+        T = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
+        T = trimesh.transformations.rotation_matrix(
+            np.radians(LINK_TILT) * (1 if i % 2 == 0 else -1), [1, 0, 0]) @ T
+        T = trimesh.transformations.translation_matrix([i * LINK_PITCH - 3.5 * LINK_PITCH, 0, 0]) @ T
+        m.apply_transform(T)
+        seg.append(m)
+    segm = trimesh.util.concatenate(seg)
+    f = segm.vertices[segm.faces]
+    light = np.array([.35, .25, .9]); light = light / np.linalg.norm(light)
+    lam = .45 + .55 * np.clip(segm.face_normals @ light, 0, 1)
+    col = np.clip(np.array([.75, .76, .8]) * lam[:, None], 0, 1)
+    el, az = np.radians(28), np.radians(-55)
+    view = np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
+    order = np.argsort(f.mean(axis=1) @ view)
+    axC.add_collection3d(Poly3DCollection(f[order], facecolors=col[order],
+                                          edgecolors=col[order], linewidths=0.3))
+    axC.set_box_aspect((1, 1, 1)); axC.set_axis_off()
+    axC.set_xlim(-26, 26); axC.set_ylim(-26, 26); axC.set_zlim(-26, 26)
+    axC.view_init(elev=28, azim=-55)
+    axC.set_title(f"chaine imprimee en place — anneaux Ø{2 * LINK_R:.0f}, fil Ø{2 * LINK_r:.1f} mm,\n"
+                  f"inclines ±{LINK_TILT:.0f}°, boucle fermee {CHAIN_LOOP:.0f} mm sans fermoir", fontsize=10)
+
+    fig.suptitle("Encore — portrait a l'echelle humaine + chaine assortie (geometrie seule)", fontsize=13)
+    fig.tight_layout()
+    fig.savefig(out, bbox_inches="tight")
+    print("portrait ->", out)
+
+
+def _link_transform(i, n, rn, tilt, z0):
+    phi = 2 * np.pi * i / n
+    T = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
+    T = trimesh.transformations.rotation_matrix(
+        np.radians(tilt) * (1 if i % 2 == 0 else -1), [1, 0, 0]) @ T
+    T = trimesh.transformations.rotation_matrix(phi + np.pi / 2, [0, 0, 1]) @ T
+    T = trimesh.transformations.translation_matrix(
+        [rn * np.cos(phi), rn * np.sin(phi), z0]) @ T
+    return T
+
+
+def _chain_pair_check(n, rn, tilt):
+    """Numeric clearance + linkage check on consecutive centerline rings."""
+    th = np.linspace(0, 2 * np.pi, 240, endpoint=False)
+    ring = np.c_[LINK_R * np.cos(th), np.zeros_like(th), LINK_R * np.sin(th), np.ones_like(th)]
+    a = (ring @ _link_transform(0, n, rn, tilt, 0).T)[:, :3]
+    b = (ring @ _link_transform(1, n, rn, tilt, 0).T)[:, :3]
+    d = np.sqrt(((a[:, None, :] - b[None, :, :]) ** 2).sum(-1)).min()
+    clearance = d - 2 * LINK_r
+    # linked if B's centerline crosses A's disk plane inside the ring radius
+    Ta = _link_transform(0, n, rn, tilt, 0)
+    inv = np.linalg.inv(Ta)
+    bl = (np.c_[b, np.ones(len(b))] @ inv.T)[:, :3]
+    sgn = np.sign(bl[:, 1])
+    crossings = np.where(np.diff(sgn) != 0)[0]
+    linked = any(np.hypot(bl[i, 0], bl[i, 2]) < LINK_R for i in crossings)
+    return clearance, linked
+
+
+def build_chain():
+    n = int(round(CHAIN_LOOP / LINK_PITCH))
+    n += n % 2                               # even count so tilts alternate cleanly
+    rn = CHAIN_LOOP / (2 * np.pi)
+    clearance, linked = _chain_pair_check(n, rn, LINK_TILT)
+    print(f"chain: {n} links, loop {CHAIN_LOOP:.0f} mm, print circle "
+          f"Ø{2 * rn + 2 * LINK_R + 2 * LINK_r:.0f} mm, "
+          f"link clearance {clearance:.2f} mm, linked={linked}")
+    assert linked and clearance > 0.35, "chain geometry broken — tune LINK_PITCH/LINK_TILT"
+    proto = trimesh.creation.torus(major_radius=LINK_R, minor_radius=LINK_r,
+                                   major_sections=48, minor_sections=14)
+    links = []
+    for i in range(n):
+        m = proto.copy()
+        m.apply_transform(_link_transform(i, n, rn, LINK_TILT, 0))
+        links.append(m)
+    chain = trimesh.util.concatenate(links)
+    chain.apply_translation([0, 0, -chain.bounds[0][2]])
+    return chain, n
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--viewer", action="store_true")
+    ap.add_argument("--chain", action="store_true")
+    ap.add_argument("--portrait", action="store_true")
     args = ap.parse_args()
     front, back, dummies, dims = build()
     for m, name in [(back, "encore_back.stl"), (front, "encore_front.stl")]:
@@ -639,6 +819,13 @@ def main():
         render(front, back, dummies, dims, "four_views.png")
     if args.viewer:
         write_viewer(front, back, dummies, dims, "viewer.html")
+    if args.chain:
+        chain, n = build_chain()
+        chain.export("encore_chain.stl")
+        print("encore_chain.stl watertight:", chain.is_watertight,
+              "| dims:", np.round(chain.extents, 1))
+    if args.portrait:
+        portrait(dims, "portrait_scale.png")
 
 
 if __name__ == "__main__":
