@@ -135,14 +135,14 @@ void pollTouch() {
   static uint32_t downAt = 0, lastTapAt = 0;
   uint32_t now = millis();
   uint32_t raw = touchRead(PIN_TOUCH);
-  bool pressed = raw > touchBaseline + touchBaseline / 2;
+  bool pressed = raw > touchBaseline + (touchBaseline * 2) / 5;   // +40%, tuned on real pad
 #if TOUCH_DEBUG
   static uint32_t lastDbg = 0;
   if (now - lastDbg >= 500) {
     lastDbg = now;
     Serial.printf("touch raw=%lu baseline=%lu threshold=%lu %s\n",
                   (unsigned long)raw, (unsigned long)touchBaseline,
-                  (unsigned long)(touchBaseline + touchBaseline / 2),
+                  (unsigned long)(touchBaseline + (touchBaseline * 2) / 5),
                   pressed ? "<== PRESSED" : "");
   }
 #endif
