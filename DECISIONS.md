@@ -6,3 +6,4 @@
 - 2026-07-22 Double tap = pin, long press = privacy. Highlights are automatic (crowd volume), no dedicated gesture.
 - 2026-07-22 Deep-sleep listening management -> roadmap, not hackathon scope.
 - 2026-07-22 NVIDIA challenge = conditional stretch goal only (vLLM night-batch variant), never before the core demo works.
+- 2026-07-24 Jade's PagePlaylist mockup (Liquid Glass, iOS 26) merged as the app's design-system reference: `DesignSystem/` tokens + background, demo data stays in `UI/PlaylistTrack.swift` until the journal wires in.

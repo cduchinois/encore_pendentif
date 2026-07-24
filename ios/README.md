@@ -2,7 +2,9 @@
 
 [← Main README](../README.md) · Contracts: [contracts/](../contracts/README.md) · Owner: ios-dev agent
 
-Everything intelligent runs here, on-device: audio receive, the 4-stage recognition ladder, Gemma E2B, the journal, the recap, and the Apple Music playlist. All files under `Encore/` are **stubs showing the intended module layout** — they are implemented on hackathon day. The demo dashboard is this app's screen, projected.
+Everything intelligent runs here, on-device: audio receive, the 4-stage recognition ladder, Gemma E2B, the journal, the recap, and the Apple Music playlist. Most files under `Encore/` are **stubs showing the intended module layout** — they are implemented on hackathon day. Exceptions already implemented: `App/`, `DesignSystem/`, `UI/PagePlaylist.swift` + `UI/PlaylistTrack.swift` (Jade's design mockup with demo data, the visual reference for all other pages) and `Assets.xcassets` (background image, app icon set). The demo dashboard is this app's screen, projected.
+
+> Naming heads-up: `PagePlaylist` uses SwiftUI's built-in `TimelineView` for animations. When implementing the dashboard in `UI/TimelineView.swift`, name the type something else (e.g. `DashboardTimeline`) or it will shadow SwiftUI's and break those call sites.
 
 ## Setup (one-time, on the Mac — the .xcodeproj is not committed)
 
@@ -15,6 +17,11 @@ Everything intelligent runs here, on-device: audio receive, the 4-stage recognit
 
 | Module | Role | Gate |
 |---|---|---|
+| `App/EncoreApp.swift` | `@main` entry point — currently launches the PagePlaylist mockup | done |
+| `DesignSystem/EncoreTheme.swift` | Design tokens: palette, radii, spacing, typography, `Color(hex:)` — **the reference for every page** | done |
+| `DesignSystem/EncoreBackground.swift` | Photographic backdrop + gradient veils (asset `BackgroundImage`) | done |
+| `UI/PagePlaylist.swift` | Recap page mockup: header, summary card, setlist timeline (aurora pin glow, pulsing live dot), floating CTA — all Liquid Glass (`.glassEffect`, iOS 26) | done |
+| `UI/PlaylistTrack.swift` | View model + demo dataset for PagePlaylist (to be replaced by the journal feed) | done |
 | `Audio/UDPAudioReceiver.swift` | Listen on `:7777`, unpack `AUDIO`/`EVENT`/`HEARTBEAT` packets per [pendant_protocol.md](../contracts/pendant_protocol.md), ring buffer + debug waveform, send `CMD_LED` back | 1 (10:30) |
 | `Recognition/ShazamKitMatcher.swift` | Load `.shazamsignature` files from the catalog build into an `SHCustomCatalog`; offline match in 3–5 s | 2 (12:00) |
 | `Recognition/RecognitionStage.swift` | The ladder: local catalog → embeddings (bonus) → world catalog (bonus) → Gemma ID card; every unknown keeps clip + fingerprint + ID card | 2–3 |
