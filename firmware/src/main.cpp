@@ -14,7 +14,10 @@
 #include "secrets.h"
 
 // ---------- protocol v1 ----------
-static const char*    PHONE_IP = "172.20.10.1";    // iPhone hotspot gateway, always this IP
+#ifndef ENCORE_PHONE_IP                            // override in secrets.h to stream to a Mac for tests
+#define ENCORE_PHONE_IP "172.20.10.1"              // iPhone hotspot gateway, always this IP
+#endif
+static const char*    PHONE_IP = ENCORE_PHONE_IP;
 static const uint16_t PORT     = 7777;
 enum : uint8_t {
   MSG_AUDIO = 0x01, MSG_EVENT = 0x02, MSG_HEARTBEAT = 0x03, MSG_CMD_LED = 0x10,
