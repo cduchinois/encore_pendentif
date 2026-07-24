@@ -64,8 +64,9 @@ while True:
 
 **Working** (`src/main.cpp`): mic capture at 16 kHz → AUDIO frames over UDP, touch gestures (double tap = PIN, long press = privacy toggle), CMD_LED receive path (solid/pulse/flash-once), HEARTBEAT every 5 s (RSSI real, battery stubbed at 100), `WiFi.setSleep(false)`, auto-reconnect on WiFi loss, boot log with IP.
 
+**Battery gauge**: solder two equal resistors (100k–470k, e.g. 2×220k) in series from BAT+ to GND, midpoint to **D2 (GPIO3)**. The firmware auto-detects the divider (reading < 2.5 V = not wired → reports 100%) and maps 3.3–4.2 V to 0–100%. Note: on USB power the charger holds BAT+ high, so ~100% while plugged is normal — the true reading needs battery power.
+
 **TODO**:
-- [ ] Real battery % — needs a voltage divider from BAT+ to an ADC pin (hardware decision, not blocking).
 - [ ] Tune `touchBaseline` threshold on the real copper pad (baseline is auto-calibrated at boot; factor is 1.5×).
 - [ ] Host-side `pio test`: frame pack/unpack round-trip against the protocol doc (see `test/README.md` — keep protocol logic in pure functions).
 

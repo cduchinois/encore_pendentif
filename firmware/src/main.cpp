@@ -29,6 +29,7 @@ static const int SAMPLE_RATE = 16000;
 static const int FRAME_SAMPLES = 320;              // 20 ms
 static const int PIN_TOUCH = T1;                   // copper pad on GPIO1
 static const int PIN_LED   = 2;                    // WS2812B data
+static const int PIN_VBAT  = A2;                   // GPIO3/D2 — 2x220k divider from BAT+
 
 // ---------- gestures ----------
 #define TOUCH_DEBUG 1                              // 1 = print touch readings every 500 ms
@@ -84,14 +85,26 @@ void sendEvent(uint8_t code) {
   udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt)); udp.endPacket();
 }
 
+uint32_t batteryMilliVolts() {
+  uint32_t mv = 0;
+  for (int i = 0; i < 8; i++) mv += analogReadMilliVolts(PIN_VBAT);
+  return (mv / 8) * 2;                             // divider halves VBAT
+}
+
 uint8_t batteryPct() {
-  // TODO(hw): real reading needs a divider from BAT+ to an ADC pin; stub until wired.
-  return 100;
+  uint32_t mv = batteryMilliVolts();
+  if (mv < 2500) return 100;                       // divider not wired yet -> stub
+  // LiPo curve approximated linearly: 4.2 V full, 3.3 V empty — plenty for a demo gauge
+  long pct = ((long)mv - 3300) * 100 / (4200 - 3300);
+  return (uint8_t)constrain(pct, 0, 100);
 }
 
 void sendHeartbeat() {
   uint8_t pkt[3] = { MSG_HEARTBEAT, batteryPct(), (uint8_t)(int8_t)WiFi.RSSI() };
   udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt)); udp.endPacket();
+#if TOUCH_DEBUG
+  Serial.printf("battery %u%% (%lu mV)\n", pkt[1], (unsigned long)batteryMilliVolts());
+#endif
 }
 
 void startFlash(uint8_t r, uint8_t g, uint8_t b) {
