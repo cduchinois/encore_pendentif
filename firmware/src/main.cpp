@@ -46,19 +46,25 @@ uint32_t flashUntil = 0;
 
 uint32_t touchBaseline = 0;                        // S3: touchRead rises when touched
 
-void setupMic() {
+bool micOk = false;
+
+bool setupMic() {
   i2s_config_t cfg = {};
   cfg.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM);
   cfg.sample_rate = SAMPLE_RATE;
   cfg.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
   cfg.channel_format = I2S_CHANNEL_FMT_ONLY_LEFT;
+  cfg.communication_format = I2S_COMM_FORMAT_STAND_I2S;
   cfg.dma_buf_count = 4; cfg.dma_buf_len = FRAME_SAMPLES;
-  i2s_driver_install(I2S_NUM_0, &cfg, 0, nullptr);
+  esp_err_t err = i2s_driver_install(I2S_NUM_0, &cfg, 0, nullptr);
+  if (err != ESP_OK) { Serial.printf("MIC DEAD: i2s_driver_install err %d\n", err); return false; }
   i2s_pin_config_t pins = {};
   pins.mck_io_num = I2S_PIN_NO_CHANGE; pins.bck_io_num = I2S_PIN_NO_CHANGE;
   pins.ws_io_num = PDM_CLK; pins.data_in_num = PDM_DATA;
   pins.data_out_num = I2S_PIN_NO_CHANGE;
-  i2s_set_pin(I2S_NUM_0, &pins);
+  err = i2s_set_pin(I2S_NUM_0, &pins);
+  if (err != ESP_OK) { Serial.printf("MIC DEAD: i2s_set_pin err %d\n", err); return false; }
+  return true;
 }
 
 void sendAudioFrame(int16_t* pcm) {
@@ -190,7 +196,8 @@ void setup() {
   led.begin();
   connectWifi();
   udp.begin(PORT);                                 // also our receive port for CMD_LED
-  setupMic();
+  micOk = setupMic();
+  if (!micOk) Serial.println("running WITHOUT audio (touch/LED/heartbeat still up)");
   calibrateTouch();
   Serial.printf("touch baseline %lu\n", (unsigned long)touchBaseline);
   Serial.println("ready — double tap = PIN, long press = privacy toggle");
@@ -202,12 +209,13 @@ void loop() {
   static uint32_t lastHb = 0;
 
   size_t got = 0;
-  i2s_read(I2S_NUM_0, pcm, sizeof(pcm), &got, portMAX_DELAY);  // paces the loop at 20 ms
+  if (micOk) i2s_read(I2S_NUM_0, pcm, sizeof(pcm), &got, portMAX_DELAY);  // paces the loop at 20 ms
+  else delay(20);
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("wifi lost, reconnecting");
     connectWifi();
   }
-  if (!privacyMode && got == sizeof(pcm)) sendAudioFrame(pcm);
+  if (micOk && !privacyMode && got == sizeof(pcm)) sendAudioFrame(pcm);
 
   pollTouch();
   pollUdp();
