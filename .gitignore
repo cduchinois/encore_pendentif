@@ -12,3 +12,4 @@ __pycache__/
 ios/build/
 firmware/.pio/
 *.xcuserdatad
+hardware/3dprint/third_party/

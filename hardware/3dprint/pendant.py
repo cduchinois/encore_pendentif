@@ -56,7 +56,8 @@ LIP_H, LIP_T = 2.2, 1.0                     # snap lip (on the back shell)
 RIDGE = 0.30                                # snap ridge / groove interference
 SLIP = 0.15                                 # radial slip clearance
 ENGRAVE = 1.2                               # pulse engraving depth in the face
-LOOP_RO, LOOP_RI, LOOP_T = 5.5, 2.75, 6.0   # bail: Ø11 disc, Ø5.5 hole
+LOOP_RO, LOOP_RI, LOOP_T = 8.0, 4.9, 6.0    # bail: Ø16 disc, Ø9.8 hole —
+                                            # passes the cuban-chain link wire
 
 N_SLICE, N_PTS = 40, 170                    # loft resolution
 
@@ -366,7 +367,8 @@ def build():
                          (.07, .07, .08), 0.6)
     dummies = {k: v[0] for k, v in comps.items()}
 
-    dims = dict(width=round(maxx - minx, 1),
+    dims = dict(bail_y=round(ring_c[1], 1),
+                width=round(maxx - minx, 1),
                 height=round((max(ring_c[1] + LOOP_RO, maxy)) - miny, 1),
                 depth=round(2 * H, 1), engrave=ENGRAVE,
                 hole=2 * LOOP_RI,
@@ -455,6 +457,15 @@ def write_viewer(front, back, dummies, dims, out):
     }
     for name, (m, c, ex) in dummies.items():
         parts[name] = {"mesh": pack(m), "color": list(c), "ex": ex}
+    import os
+    chain_path = "third_party/cuban_chain_64cm.stl"
+    if os.path.exists(chain_path):
+        ch = trimesh.load(chain_path)
+        lo, hi = ch.bounds
+        ch.apply_translation([-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -(lo[2] + hi[2]) / 2])
+        ch.apply_translation([0, dims["bail_y"] + ch.extents[1] / 2 - 11, 0])
+        parts["chain"] = {"mesh": pack(ch), "color": [0.70, 0.71, 0.74], "ex": 0.0}
+        print("viewer: cuban chain embedded,", len(ch.faces), "faces")
     html = VIEWER_TEMPLATE.replace("__DATA__", json.dumps(parts)) \
                           .replace("__DIMS__", json.dumps(dims))
     with open(out, "w") as fh:
@@ -501,6 +512,7 @@ VIEWER_TEMPLATE = r"""<!DOCTYPE html>
   <button id="btnAnim">▶ open / close</button>
   <button id="btnSpin">↻ auto-rotate</button>
   <button id="btnWire">🔧 wiring / solder</button>
+  <button id="btnChain">⛓ chain</button>
  </div>
 </div>
 <div id="solder" style="display:none;position:fixed;right:14px;bottom:14px;width:340px;
@@ -566,7 +578,7 @@ function buildPart(d,name){
  gl.bufferData(gl.ARRAY_BUFFER,bn===null?n:n,gl.STATIC_DRAW);
  return {bv,bn,count:nT*3,color:d.color,ex:d.ex,name};}
 const parts=Object.entries(DATA).map(([k,d])=>buildPart(d,k));
-let rx=-1.05,ry=0.0,dist=150,explode=0,spin=false,animT=null,wireMode=false;
+let rx=-1.05,ry=0.0,dist=150,ty=-6,explode=0,spin=false,animT=null,wireMode=false,chainVisible=false;
 const slider=document.getElementById("explode");
 function m4mul(a,b){const o=new Float32Array(16);
  for(let r=0;r<4;r++)for(let c=0;c<4;c++){let s=0;
@@ -583,7 +595,7 @@ function draw(){
  const cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.cos(ry),sy=Math.sin(ry);
  const rotY=new Float32Array([cy,0,-sy,0, 0,1,0,0, sy,0,cy,0, 0,0,0,1]);
  const rotX=new Float32Array([1,0,0,0, 0,cx,sx,0, 0,-sx,cx,0, 0,0,0,1]);
- const trans=new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,-6,-dist,1]);
+ const trans=new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,ty,-dist,1]);
  const mv=m4mul(trans,m4mul(rotX,rotY));
  const mvp=m4mul(persp(0.72,w/h,1,900),mv);
  gl.uniformMatrix4fv(loc.mvp,false,mvp);
@@ -592,6 +604,7 @@ function draw(){
  const e=(1-explode)*26;
  for(const p of parts){
   if(wireMode&&(p.name==="back"||p.name==="front"))continue;
+  if(p.name==="chain"&&(!chainVisible||wireMode))continue;
   gl.uniform1f(loc.ez,p.ex*e);
   gl.uniform3fv(loc.col,p.color);
   gl.bindBuffer(gl.ARRAY_BUFFER,p.bv);
@@ -604,6 +617,7 @@ slider.addEventListener("input",()=>{explode=+slider.value;});
 const q=new URLSearchParams(location.search);
 if(q.has("explode"))slider.value=q.get("explode");
 if(q.has("wiring"))setTimeout(()=>document.getElementById("btnWire").click(),50);
+if(q.has("chain"))setTimeout(()=>document.getElementById("btnChain").click(),60);
 explode=+slider.value;
 document.getElementById("btnAnim").onclick=()=>{
  const target=explode>0.5?0:1,start=explode,t0=performance.now();
@@ -612,6 +626,9 @@ document.getElementById("btnAnim").onclick=()=>{
   slider.value=explode;if(k<1)requestAnimationFrame(step);};
  requestAnimationFrame(step);};
 document.getElementById("btnSpin").onclick=()=>{spin=!spin;};
+document.getElementById("btnChain").onclick=()=>{
+ chainVisible=!chainVisible;
+ if(chainVisible){dist=Math.max(dist,330);ty=-75;}else{dist=Math.min(dist,160);ty=-6;}};
 document.getElementById("btnWire").onclick=()=>{
  wireMode=!wireMode;
  document.getElementById("solder").style.display=wireMode?"block":"none";
