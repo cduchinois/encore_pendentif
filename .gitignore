@@ -12,3 +12,4 @@ __pycache__/
 ios/build/
 firmware/.pio/
 *.xcuserdatad
+data/test_ultimate/

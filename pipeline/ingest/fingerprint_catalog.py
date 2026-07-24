@@ -80,15 +80,50 @@ def ensure_swift_binary():
     return SWIFT_BIN
 
 
+def _rm(p):
+    """Delete a file, tolerating that it may already be gone (afconvert removes
+    its own output file when it fails, so a plain os.unlink would crash)."""
+    try:
+        os.unlink(p)
+    except FileNotFoundError:
+        pass
+
+
+def _afconvert_to_wav(path: Path):
+    """macOS: decode a file to a temp 44.1 kHz WAV via afconvert (AudioToolbox).
+    Recovers files that AVFoundation's AVAudioFile refuses (nilError) but that
+    AudioToolbox decodes fine. Returns the temp wav path, or None on failure."""
+    if sys.platform != "darwin":
+        return None
+    fd, wav = tempfile.mkstemp(suffix=".wav"); os.close(fd)
+    r = subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16@44100", str(path), wav],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        _rm(wav); return None
+    return wav
+
+
 def make_signature(swift_bin, path: Path, sig_path: Path) -> bool:
-    """Call the compiled swift helper to emit a .shazamsignature file."""
+    """Call the compiled swift helper to emit a .shazamsignature file.
+    On AVFoundation decode failure, transcode to WAV and retry once."""
     if swift_bin is None:
         return False
     r = subprocess.run([str(swift_bin), str(path), str(sig_path)],
                        capture_output=True, text=True)
-    if r.returncode != 0:
+    if r.returncode == 0:
+        return True
+    wav = _afconvert_to_wav(path)   # fallback for AVFoundation-unreadable files
+    if wav is None:
         print(f"    signature FAILED: {r.stderr.strip()[:200]}")
-    return r.returncode == 0
+        return False
+    try:
+        r2 = subprocess.run([str(swift_bin), wav, str(sig_path)],
+                            capture_output=True, text=True)
+        if r2.returncode != 0:
+            print(f"    signature FAILED (after transcode): {r2.stderr.strip()[:200]}")
+        return r2.returncode == 0
+    finally:
+        _rm(wav)
 
 
 def main():

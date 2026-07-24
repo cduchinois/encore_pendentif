@@ -47,3 +47,20 @@ Shared shape with the Swift `ContextCompiler` — same output, two languages, co
 **Bonus (after 15:00 freeze, on branches)**
 - [ ] `resolve/serp_resolver.py` live during the demo (beat 6).
 - [ ] `bench/context_bench.py` with 10–20 cases from the demo set + chart.
+
+## Catalog build — done this session (branch `feat/pipe-catalog-build-speedup`)
+
+Built ~16.8k-track catalog (Compilations + Ultimate from SSDMusic): **16814/16815 signed**, verified consistent. New in `ingest/`:
+- **`fingerprint_catalog.py`**: resume bug fixed (skip only `signature_ok=1`); swift helper precompiled once (`swiftc` → cached binary, ~6.5× faster); afconvert transcode fallback for AVFoundation-unreadable MP3s (recovered the ~3% "nilError" failures).
+- **`verify_catalog.py`** (new): read-only DB↔signatures consistency + failure list; non-zero exit for a gate check.
+- **`extract_artwork.py`** (new): embedded covers de-duplicated by content hash (16.8k tracks → **1274 unique**, 802 MB full-res / ~45 MB as 300px thumbs), written to `data/catalog/artwork/<sha1>.jpg` + `index.json` (`track_id → file`). **Contract-neutral: does NOT touch `catalog.sqlite`.**
+
+## ⚠️ Open design decisions — decide with Jade before wiring
+
+1. **How the app gets artwork.** Covers are extracted locally (offline, instant) as a deduped set + `artwork/index.json` sidecar. To wire into the DB, pick one — this touches `contracts/`:
+   - (a) **Reuse `artwork_url`** as a bundle-relative path (e.g. `artwork/<sha1>.jpg`). Zero schema change, but overloads a field named `_url`; iOS must load bundle-local, not fetch remote.
+   - (b) **Add a dedicated field** `artwork_local` (schema change → contracts first, both consumers same branch).
+   The slow work (scanning 16.8k files) is done; wiring is a 1-line update from `index.json` either way.
+2. **Shipped artwork size.** Full-res unique set is 802 MB (too big to bundle). Recommend regenerating thumbnails: `extract_artwork.py --max-px 300` (~45 MB, native `sips`, no dep). Pick the px.
+3. **`artwork_url` semantics** already imply remote/online — but Encore is offline-first. Confirm the app never needs network to render a match card (favors local artwork).
+4. **iTunes links enrichment** (`apple_url`, `spotify_url`, `preview_url`) is online + throttled (3.1 s/req → ~14 h for all). Run `enrich_catalog.py --priority data/demo_set/demo_tracks.txt` on the ~18 demo tracks only (~1 min) — deferred, not blocking.
