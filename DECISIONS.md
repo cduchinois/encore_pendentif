@@ -6,3 +6,4 @@
 - 2026-07-22 Double tap = pin, long press = privacy. Highlights are automatic (crowd volume), no dedicated gesture.
 - 2026-07-22 Deep-sleep listening management -> roadmap, not hackathon scope.
 - 2026-07-22 NVIDIA challenge = conditional stretch goal only (vLLM night-batch variant), never before the core demo works.
+- 2026-07-24 Flash via PlatformIO not raw ESP-IDF (same esptool + BOOT/RESET recovery, zero toolchain setup); connection via iPhone hotspot + UDP to fixed 172.20.10.1:7777 (no IP discovery, loss-tolerant), protocol v1 unchanged. WiFi creds in gitignored firmware/src/secrets.h.
