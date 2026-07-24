@@ -20,11 +20,14 @@ Notes
   On other platforms the script still builds catalog.sqlite and prints the
   command to run on the Mac.
 """
-import argparse, os, sqlite3, subprocess, sys, unicodedata
+import argparse, os, sqlite3, subprocess, sys, tempfile, unicodedata
 from pathlib import Path
 
 AUDIO_EXT = {".mp3", ".m4a", ".aac", ".flac", ".wav", ".aiff", ".ogg"}
 SWIFT_HELPER = Path(__file__).with_name("make_signature.swift")
+# compiled once per machine (build artifact, never committed); avoids recompiling
+# the swift helper on every single track — the dominant cost at scale.
+SWIFT_BIN = Path(tempfile.gettempdir()) / "encore_make_signature"
 
 
 def norm(s):
@@ -62,11 +65,26 @@ def ensure_db(out: Path):
     return db
 
 
-def make_signature(path: Path, sig_path: Path) -> bool:
-    """macOS only: call the swift helper to emit a .shazamsignature file."""
+def ensure_swift_binary():
+    """macOS only: compile the swift helper to a binary once (rebuild if stale).
+    Returns the binary path, or None if unavailable (non-macOS or compile error)."""
     if sys.platform != "darwin":
+        return None
+    if not SWIFT_BIN.exists() or SWIFT_BIN.stat().st_mtime < SWIFT_HELPER.stat().st_mtime:
+        print(f"compiling swift helper -> {SWIFT_BIN}")
+        r = subprocess.run(["swiftc", "-O", str(SWIFT_HELPER), "-o", str(SWIFT_BIN)],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            print(f"swiftc FAILED: {r.stderr.strip()[:300]}")
+            return None
+    return SWIFT_BIN
+
+
+def make_signature(swift_bin, path: Path, sig_path: Path) -> bool:
+    """Call the compiled swift helper to emit a .shazamsignature file."""
+    if swift_bin is None:
         return False
-    r = subprocess.run(["swift", str(SWIFT_HELPER), str(path), str(sig_path)],
+    r = subprocess.run([str(swift_bin), str(path), str(sig_path)],
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(f"    signature FAILED: {r.stderr.strip()[:200]}")
@@ -84,26 +102,32 @@ def main():
     args.out.mkdir(parents=True, exist_ok=True)
     sig_dir = args.out / "signatures"; sig_dir.mkdir(exist_ok=True)
     db = ensure_db(args.out)
+    swift_bin = ensure_swift_binary()
 
     files = sorted(p for p in args.music_dir.rglob("*") if p.suffix.lower() in AUDIO_EXT)
     if args.limit: files = files[: args.limit]
     print(f"{len(files)} audio files found in {args.music_dir}")
 
-    done = skipped = 0
+    done = skipped = resigned = 0
     for i, f in enumerate(files, 1):
-        if db.execute("SELECT 1 FROM tracks WHERE path=?", (str(f),)).fetchone():
+        row = db.execute("SELECT id, signature_ok FROM tracks WHERE path=?", (str(f),)).fetchone()
+        if row and row[1]:            # already signed -> skip
             skipped += 1; continue
-        tags = read_tags(f)
-        bpm = analyze_bpm(f) if args.bpm else None
-        cur = db.execute(
-            "INSERT INTO tracks(path,title,artist,album,duration,bpm) VALUES(?,?,?,?,?,?)",
-            (str(f), tags["title"], tags["artist"], tags["album"], tags["duration"], bpm))
-        tid = cur.lastrowid
-        ok = make_signature(f, sig_dir / f"{tid}.shazamsignature")
+        if row:                       # row exists but signature missing -> re-sign only
+            tid = row[0]
+        else:                         # new track -> insert metadata
+            tags = read_tags(f)
+            bpm = analyze_bpm(f) if args.bpm else None
+            cur = db.execute(
+                "INSERT INTO tracks(path,title,artist,album,duration,bpm) VALUES(?,?,?,?,?,?)",
+                (str(f), tags["title"], tags["artist"], tags["album"], tags["duration"], bpm))
+            tid = cur.lastrowid
+        ok = make_signature(swift_bin, f, sig_dir / f"{tid}.shazamsignature")
         db.execute("UPDATE tracks SET signature_ok=? WHERE id=?", (int(ok), tid))
-        done += 1
+        resigned += 1 if row else 0
+        done += 0 if row else 1
         if i % 50 == 0:
-            db.commit(); print(f"  {i}/{len(files)}  (+{done}, skipped {skipped})")
+            db.commit(); print(f"  {i}/{len(files)}  (+{done}, re-signed {resigned}, skipped {skipped})")
     db.commit()
 
     n_sig = db.execute("SELECT COUNT(*) FROM tracks WHERE signature_ok=1").fetchone()[0]
