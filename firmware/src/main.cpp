@@ -159,7 +159,21 @@ void connectWifi() {
   WiFi.begin(ENCORE_WIFI_SSID, ENCORE_WIFI_PASS);
   Serial.printf("connecting to \"%s\"", ENCORE_WIFI_SSID);
   uint32_t start = millis();
+  bool scanned = false;
   while (WiFi.status() != WL_CONNECTED) {
+    if (!scanned && millis() - start > 15000) {
+      scanned = true;
+      Serial.println("\nstill not connected — 2.4 GHz networks I can actually see:");
+      WiFi.disconnect();
+      int n = WiFi.scanNetworks();
+      for (int i = 0; i < n; i++)
+        Serial.printf("  \"%s\" (%d dBm)\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i));
+      if (n <= 0) Serial.println("  (none — hotspot page closed, or 5 GHz only)");
+      Serial.println("compare character-for-character with ENCORE_WIFI_SSID in secrets.h");
+      WiFi.scanDelete();
+      WiFi.begin(ENCORE_WIFI_SSID, ENCORE_WIFI_PASS);
+      Serial.print("retrying");
+    }
     // blue blink while connecting, red after 20 s (wrong creds / hotspot off / 5 GHz)
     bool late = millis() - start > 20000;
     led.setPixelColor(0, (millis() / 250) % 2 ? led.Color(late ? 60 : 0, 0, late ? 0 : 60) : 0);
