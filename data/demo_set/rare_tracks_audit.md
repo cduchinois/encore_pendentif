@@ -12,4 +12,12 @@ Statut : `confirmé` = testé live et Shazam échoue · `à tester` = à Shazame
 | The Justified Ancients Of Mu Mu — It's Grim Up North | ✅ | à tester | candidat (KLF, souvent mal indexé) |
 | Paperclip People — Throw (Slam's RTM Remix) | ✅ | à tester | candidat (remix rare) |
 
-Note : Spiral Tribe est le morceau **du duel** (Shazam échoue, Encore gagne offline). C'est distinct du slot « inconnu que *rien* ne reconnaît » (le faux beat inédit → carte Gemma), qui reste à produire.
+## Slot « inconnu » (carte Gemma) — distinct du duel
+
+Le duel (ci-dessus) : Shazam échoue, **Encore gagne offline** (morceau signé). Le slot Gemma, lui, c'est un morceau que **rien** ne reconnaît — pas même le catalogue Encore — donc l'échelle rate entièrement et **Gemma le décrit** (genre, description, voix, BPM injecté par DSP).
+
+- **Morceau** : un inédit de Mathieu, jamais publié (`Dub techno 1.m4a`, AAC 44,1 kHz, 5:11, sans métadonnées propres — normal, c'est le mystère).
+- **NON signé, hors des dossiers indexés** — c'est indispensable pour que la reconnaissance rate :
+  - clé : `encore_demo/unreleased/Dub techno 1.m4a` (à l'écart de `MUSIC/`)
+  - projet : `data/samples/unreleased/` (gitignoré)
+- BPM à injecter par DSP le jour J (jamais deviné par Gemma, cf. contrat `id_card.schema.json`). Durée connue : 311 s.
