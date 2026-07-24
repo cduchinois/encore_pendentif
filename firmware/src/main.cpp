@@ -35,7 +35,7 @@ static const int PIN_LED   = 2;                    // WS2812B data
 static const int PIN_VBAT  = A2;                   // GPIO3/D2 — 2x220k divider from BAT+
 
 // ---------- gestures ----------
-#define TOUCH_DEBUG 1                              // 1 = print touch readings every 500 ms
+#define TOUCH_DEBUG 0                              // 1 = print touch readings every 500 ms
 static const uint32_t TAP_MAX_MS    = 350;
 static const uint32_t DOUBLE_TAP_MS = 400;
 static const uint32_t LONG_PRESS_MS = 1200;
