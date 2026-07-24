@@ -14,26 +14,59 @@ The pendant is a **smart microphone, nothing more** (decision log: nothing penda
 
 ## Build & flash
 
+First time on a new machine:
+
 ```bash
+pip install platformio                      # or the VSCode PlatformIO extension
 cd firmware
-pio run -t upload      # XIAO ESP32-S3 plugged in over USB-C
-pio device monitor     # 115200 baud
+cp src/secrets.h.example src/secrets.h      # then fill in the hotspot SSID/password
 ```
 
-Set `WIFI_SSID` / `WIFI_PASS` in `src/main.cpp` to the iPhone hotspot before flashing. Validate streaming with a quick Python UDP listener before touching the app (that's the plan's "BIGGEST RISK — do this first").
+`secrets.h` is gitignored — credentials never land in git.
+
+Every flash:
+
+```bash
+cd firmware
+pio run                # compile only (optional sanity check)
+pio run -t upload      # compile + flash, XIAO plugged in over USB-C, port auto-detected
+pio device monitor     # serial console, 115200 baud (Ctrl+C to quit)
+```
+
+If upload fails ("failed to connect"): hold **BOOT**, press **RESET**, release RESET, release BOOT, then `pio run -t upload` again. Same esptool underneath as `idf.py flash`.
+
+Expected boot log on the monitor:
+
+```
+connecting to "encore-hotspot"......
+wifi ok — pendant ip 172.20.10.2, rssi -48 dBm
+streaming AUDIO -> 172.20.10.1:7777 (16 kHz mono, 20 ms frames)
+touch baseline 24817
+ready — double tap = PIN, long press = privacy toggle
+```
+
+Endless dots + blinking blue→red LED = can't join the hotspot: check it's ON, creds match `secrets.h`, and **"Maximize Compatibility" is enabled** on the iPhone (the XIAO is 2.4 GHz only).
+
+Validate streaming with a quick Python UDP listener before touching the app (that's the plan's "BIGGEST RISK — do this first"):
+
+```bash
+python3 -c "
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(('0.0.0.0', 7777))
+while True:
+    d, a = s.recvfrom(2048)
+    print(f'{a[0]} type=0x{d[0]:02x} len={len(d)}')"
+```
+
+(Run it on a Mac on the same hotspot; point `PHONE_IP` at the Mac's IP temporarily, or just trust the phone path.)
 
 ## Status
 
-**Working** (`src/main.cpp`): mic setup, frame capture loop, AUDIO + EVENT packet packing (byte-for-byte per contract), WiFi connect, LED init.
+**Working** (`src/main.cpp`): mic capture at 16 kHz → AUDIO frames over UDP, touch gestures (double tap = PIN, long press = privacy toggle), CMD_LED receive path (solid/pulse/flash-once), HEARTBEAT every 5 s (RSSI real, battery stubbed at 100), `WiFi.setSleep(false)`, auto-reconnect on WiFi loss, boot log with IP.
 
-**TODO (day-of, declared in main.cpp)**:
-- [ ] Touch gesture detection (double tap window ~400 ms, long press >1.2 s) wired to `EVENT` + `privacyMode`.
-- [ ] Receive path for `CMD_LED` (`udp.parsePacket()`) → ambiance color / pulse / pin flash.
-- [ ] HEARTBEAT every 5 s with battery estimate.
-
-**Hardening worth doing before gate 1**:
-- [ ] `WiFi.setSleep(false)` — modem power-save causes UDP jitter, the classic cause of choppy audio streaming.
-- [ ] Bounded WiFi connect retry + error LED color (currently blocks forever on a dead hotspot).
+**TODO**:
+- [ ] Real battery % — needs a voltage divider from BAT+ to an ADC pin (hardware decision, not blocking).
+- [ ] Tune `touchBaseline` threshold on the real copper pad (baseline is auto-calibrated at boot; factor is 1.5×).
 - [ ] Host-side `pio test`: frame pack/unpack round-trip against the protocol doc (see `test/README.md` — keep protocol logic in pure functions).
 
 ## Hardware notes

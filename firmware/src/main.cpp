@@ -1,31 +1,50 @@
 // Encore pendant firmware — XIAO ESP32-S3 Sense
-// Capture PDM mic -> UDP audio frames; touch gestures; WS2812B ambiance LED.
-// Protocol: see contracts/pendant_protocol.md (v1). Keep them in sync.
+// Capture PDM mic -> UDP audio frames to the iPhone hotspot; touch gestures;
+// WS2812B ambiance LED driven by CMD_LED. Protocol: contracts/pendant_protocol.md (v1).
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <driver/i2s.h>
 #include <Adafruit_NeoPixel.h>
 
-// ---------- config ----------
-static const char* WIFI_SSID = "encore-hotspot";   // iPhone hotspot
-static const char* WIFI_PASS = "CHANGE_ME";
-static const char* PHONE_IP  = "172.20.10.1";      // default iPhone hotspot gateway
-static const uint16_t PORT   = 7777;
+#if !__has_include("secrets.h")
+#error "Create firmware/src/secrets.h from secrets.h.example (hotspot credentials)"
+#endif
+#include "secrets.h"
 
-// XIAO ESP32-S3 Sense PDM mic
-static const int PDM_CLK = 42;
+// ---------- protocol v1 ----------
+static const char*    PHONE_IP = "172.20.10.1";    // iPhone hotspot gateway, always this IP
+static const uint16_t PORT     = 7777;
+enum : uint8_t {
+  MSG_AUDIO = 0x01, MSG_EVENT = 0x02, MSG_HEARTBEAT = 0x03, MSG_CMD_LED = 0x10,
+  EV_PIN = 1, EV_PRIVACY_ON = 2, EV_PRIVACY_OFF = 3,
+  LED_OFF = 0, LED_SOLID = 1, LED_PULSE = 2, LED_FLASH_ONCE = 3,
+};
+
+// ---------- hardware ----------
+static const int PDM_CLK = 42;                     // Sense on-board PDM mic
 static const int PDM_DATA = 41;
 static const int SAMPLE_RATE = 16000;
 static const int FRAME_SAMPLES = 320;              // 20 ms
-
 static const int PIN_TOUCH = T1;                   // copper pad on GPIO1
 static const int PIN_LED   = 2;                    // WS2812B data
+
+// ---------- gestures ----------
+static const uint32_t TAP_MAX_MS    = 350;
+static const uint32_t DOUBLE_TAP_MS = 400;
+static const uint32_t LONG_PRESS_MS = 1200;
 
 Adafruit_NeoPixel led(1, PIN_LED, NEO_GRB + NEO_KHZ800);
 WiFiUDP udp;
 uint16_t seq = 0;
 bool privacyMode = false;
+
+// ambiance state set by CMD_LED; flash overlays it briefly
+uint8_t ambMode = LED_OFF, ambR = 0, ambG = 0, ambB = 0;
+uint8_t flashR = 0, flashG = 0, flashB = 0;
+uint32_t flashUntil = 0;
+
+uint32_t touchBaseline = 0;                        // S3: touchRead rises when touched
 
 void setupMic() {
   i2s_config_t cfg = {};
@@ -44,7 +63,7 @@ void setupMic() {
 
 void sendAudioFrame(int16_t* pcm) {
   uint8_t pkt[1 + 2 + 4 + FRAME_SAMPLES * 2];
-  pkt[0] = 0x01;
+  pkt[0] = MSG_AUDIO;
   memcpy(pkt + 1, &seq, 2); seq++;
   uint32_t ts = millis(); memcpy(pkt + 3, &ts, 4);
   memcpy(pkt + 7, pcm, FRAME_SAMPLES * 2);
@@ -52,29 +71,132 @@ void sendAudioFrame(int16_t* pcm) {
 }
 
 void sendEvent(uint8_t code) {
-  uint8_t pkt[6]; pkt[0] = 0x02;
+  uint8_t pkt[6]; pkt[0] = MSG_EVENT;
   uint32_t ts = millis(); memcpy(pkt + 1, &ts, 4); pkt[5] = code;
   udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt)); udp.endPacket();
 }
 
-// TODO(day-of): touch gesture detection (double tap window ~400 ms, long press > 1.2 s)
-// TODO(day-of): handle CMD_LED (0x10) incoming packets -> ambiance color / pulse / pin flash
-// TODO(day-of): HEARTBEAT every 5 s with battery estimate
+uint8_t batteryPct() {
+  // TODO(hw): real reading needs a divider from BAT+ to an ADC pin; stub until wired.
+  return 100;
+}
+
+void sendHeartbeat() {
+  uint8_t pkt[3] = { MSG_HEARTBEAT, batteryPct(), (uint8_t)(int8_t)WiFi.RSSI() };
+  udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt)); udp.endPacket();
+}
+
+void startFlash(uint8_t r, uint8_t g, uint8_t b) {
+  flashR = r; flashG = g; flashB = b;
+  flashUntil = millis() + 300;
+}
+
+void pollUdp() {
+  int len = udp.parsePacket();
+  if (len <= 0) return;
+  uint8_t pkt[8];
+  len = udp.read(pkt, sizeof(pkt));
+  if (len == 5 && pkt[0] == MSG_CMD_LED) {
+    if (pkt[1] == LED_FLASH_ONCE) startFlash(pkt[2], pkt[3], pkt[4]);
+    else { ambMode = pkt[1]; ambR = pkt[2]; ambG = pkt[3]; ambB = pkt[4]; }
+  }
+}
+
+void renderLed() {
+  uint32_t now = millis();
+  uint8_t r = 0, g = 0, b = 0;
+  if (!privacyMode) {                              // privacy = LED off, unambiguous
+    if (now < flashUntil) { r = flashR; g = flashG; b = flashB; }
+    else if (ambMode == LED_SOLID) { r = ambR; g = ambG; b = ambB; }
+    else if (ambMode == LED_PULSE) {
+      float k = 0.5f + 0.5f * sinf(now * TWO_PI / 2000.0f);
+      r = ambR * k; g = ambG * k; b = ambB * k;
+    }
+  }
+  led.setPixelColor(0, led.Color(r, g, b));
+  led.show();
+}
+
+void calibrateTouch() {
+  uint64_t acc = 0;
+  for (int i = 0; i < 32; i++) { acc += touchRead(PIN_TOUCH); delay(5); }
+  touchBaseline = acc / 32;
+}
+
+void pollTouch() {
+  static bool down = false; static bool longFired = false;
+  static uint32_t downAt = 0, lastTapAt = 0;
+  uint32_t now = millis();
+  bool pressed = touchRead(PIN_TOUCH) > touchBaseline + touchBaseline / 2;
+
+  if (pressed && !down) { down = true; longFired = false; downAt = now; }
+
+  if (pressed && down && !longFired && now - downAt >= LONG_PRESS_MS) {
+    longFired = true;
+    if (privacyMode) { privacyMode = false; sendEvent(EV_PRIVACY_OFF); }
+    else { sendEvent(EV_PRIVACY_ON); privacyMode = true; }
+    Serial.printf("privacy %s\n", privacyMode ? "ON" : "OFF");
+  }
+
+  if (!pressed && down) {
+    down = false;
+    if (!longFired && now - downAt < TAP_MAX_MS) {
+      if (now - lastTapAt <= DOUBLE_TAP_MS) {
+        lastTapAt = 0;
+        if (!privacyMode) {
+          sendEvent(EV_PIN);
+          startFlash(255, 255, 255);               // instant local feedback
+          Serial.println("PIN");
+        }
+      } else lastTapAt = now;
+    }
+  }
+}
+
+void connectWifi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);                            // modem sleep causes UDP jitter
+  WiFi.begin(ENCORE_WIFI_SSID, ENCORE_WIFI_PASS);
+  Serial.printf("connecting to \"%s\"", ENCORE_WIFI_SSID);
+  uint32_t start = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    // blue blink while connecting, red after 20 s (wrong creds / hotspot off / 5 GHz)
+    bool late = millis() - start > 20000;
+    led.setPixelColor(0, (millis() / 250) % 2 ? led.Color(late ? 60 : 0, 0, late ? 0 : 60) : 0);
+    led.show();
+    delay(200); Serial.print(".");
+  }
+  Serial.printf("\nwifi ok — pendant ip %s, rssi %d dBm\n",
+                WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  Serial.printf("streaming AUDIO -> %s:%u (16 kHz mono, 20 ms frames)\n", PHONE_IP, PORT);
+}
 
 void setup() {
   Serial.begin(115200);
-  led.begin(); led.setPixelColor(0, led.Color(0, 0, 40)); led.show();
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) { delay(200); Serial.print("."); }
-  Serial.printf("\nwifi ok %s\n", WiFi.localIP().toString().c_str());
-  udp.begin(PORT);
+  led.begin();
+  connectWifi();
+  udp.begin(PORT);                                 // also our receive port for CMD_LED
   setupMic();
+  calibrateTouch();
+  Serial.printf("touch baseline %lu\n", (unsigned long)touchBaseline);
+  Serial.println("ready — double tap = PIN, long press = privacy toggle");
+  ambMode = LED_PULSE; ambR = 0; ambG = 0; ambB = 40; // idle blue until the app takes over
 }
 
 void loop() {
   static int16_t pcm[FRAME_SAMPLES];
+  static uint32_t lastHb = 0;
+
   size_t got = 0;
-  i2s_read(I2S_NUM_0, pcm, sizeof(pcm), &got, portMAX_DELAY);
+  i2s_read(I2S_NUM_0, pcm, sizeof(pcm), &got, portMAX_DELAY);  // paces the loop at 20 ms
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("wifi lost, reconnecting");
+    connectWifi();
+  }
   if (!privacyMode && got == sizeof(pcm)) sendAudioFrame(pcm);
-  // touch + led handling: see TODOs
+
+  pollTouch();
+  pollUdp();
+  if (millis() - lastHb >= 5000) { lastHb = millis(); sendHeartbeat(); }
+  renderLed();
 }
