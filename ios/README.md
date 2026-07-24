@@ -6,12 +6,44 @@ Everything intelligent runs here, on-device: audio receive, the 4-stage recognit
 
 > Naming heads-up: `PagePlaylist` uses SwiftUI's built-in `TimelineView` for animations. When implementing the dashboard in `UI/TimelineView.swift`, name the type something else (e.g. `DashboardTimeline`) or it will shadow SwiftUI's and break those call sites.
 
-## Setup (one-time, on the Mac — the .xcodeproj is not committed)
+## Getting started (for anyone on the team)
 
-1. Xcode → New Project → iOS App "Encore", SwiftUI, bundle id `dev.encore.app`. Save in `ios/` (replace this folder's `Encore/` with the generated one, then copy the stub .swift files back in).
-2. Signing: Personal Team (free Apple ID) — app valid 7 days, install the evening before. Enable Developer Mode on the iPhone.
-3. Capabilities: Background Modes (Uses BLE accessories), MusicKit. Add ShazamKit.framework.
-4. For Gemma: add the llama.cpp Swift package (or MediaPipe LLM pod) + the E2B GGUF in app resources. Test llama.cpp AND Google AI Edge on the Mac beforehand; keep the winner.
+`Encore.xcodeproj` **is committed** (decision 2026-07-24). It uses Xcode's synchronized-folder format: everything under `Encore/` is picked up automatically — new files added on disk or by a teammate appear in the project without touching the .xcodeproj.
+
+**Prerequisites:** Xcode 26+ (the UI uses the iOS 26 Liquid Glass API `.glassEffect`; older Xcode will not compile it). For device runs: an iPhone on iOS 26.
+
+**Build (simulator) — no setup at all:**
+
+```bash
+git clone https://github.com/cduchinois/encore_pendentif.git
+cd encore_pendentif
+git checkout claude/ios-app-dev-l4ph2o   # current iOS branch
+open ios/Encore.xcodeproj
+```
+
+Pick an iPhone simulator, ⌘R. It launches on the PagePlaylist mockup.
+
+**Run on your iPhone (one-time per Mac/phone):**
+
+1. Target "Encore" → Signing & Capabilities → Team: select your Personal Team (free Apple ID). The committed project has no team set, so this stays a local-only change — **don't commit the `DEVELOPMENT_TEAM` diff** if Xcode writes it into the pbxproj.
+2. On the iPhone: Settings → Privacy & Security → Developer Mode → on (reboots). First launch: Settings → General → VPN & Device Management → trust your certificate.
+3. Free-account quirks: if Xcode says the bundle id `jade.encore.pendant` is unavailable for your team, suffix it locally (e.g. `.mat`). Apps signed with a Personal Team expire after 7 days — reinstall the evening before demo day.
+
+**Push your work:**
+
+```bash
+git checkout claude/ios-app-dev-l4ph2o   # or a feat/<issue#>-name branch off it
+git add ios/
+git commit -m "ios: <what you did>"      # module prefix, see repo rules
+git push -u origin <branch>
+```
+
+Before committing, check `git diff ios/Encore.xcodeproj` — only commit project changes that are intentional (new capability, new package), never your signing team or `xcuserdata` (gitignored).
+
+**Still to add when the corresponding modules land** (not needed for the mockup):
+
+- Capabilities: Background Modes (BLE accessories), MusicKit; ShazamKit.framework.
+- Gemma: llama.cpp Swift package (or MediaPipe LLM pod) + the E2B GGUF in app resources. Test llama.cpp AND Google AI Edge on the Mac beforehand; keep the winner.
 
 ## Module map — how the app is supposed to work
 

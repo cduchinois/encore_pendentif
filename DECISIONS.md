@@ -6,4 +6,5 @@
 - 2026-07-22 Double tap = pin, long press = privacy. Highlights are automatic (crowd volume), no dedicated gesture.
 - 2026-07-22 Deep-sleep listening management -> roadmap, not hackathon scope.
 - 2026-07-22 NVIDIA challenge = conditional stretch goal only (vLLM night-batch variant), never before the core demo works.
+- 2026-07-24 Commit `ios/Encore.xcodeproj` (synchronized-folder format, no team id): clone → open → build must work for both of us on hackathon morning; overrides the earlier "no .xcodeproj in git" note.
 - 2026-07-24 Jade's PagePlaylist mockup (Liquid Glass, iOS 26) merged as the app's design-system reference: `DesignSystem/` tokens + background, demo data stays in `UI/PlaylistTrack.swift` until the journal wires in.
