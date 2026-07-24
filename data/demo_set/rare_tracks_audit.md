@@ -20,4 +20,4 @@ Le duel (ci-dessus) : Shazam échoue, **Encore gagne offline** (morceau signé).
 - **NON signé, hors des dossiers indexés** — c'est indispensable pour que la reconnaissance rate :
   - clé : `encore_demo/unreleased/Dub techno 1.m4a` (à l'écart de `MUSIC/`)
   - projet : `data/samples/unreleased/` (gitignoré)
-- BPM à injecter par DSP le jour J (jamais deviné par Gemma, cf. contrat `id_card.schema.json`). Durée connue : 311 s.
+- **BPM (DSP, librosa) : ~129** — la ground-truth à injecter dans la carte Gemma (le contrat `id_card.schema.json` interdit à Gemma de le deviner). L'app le recalcule en direct sur le clip ; ~129 sert à vérifier que l'ID card est juste. Durée : 311 s.
