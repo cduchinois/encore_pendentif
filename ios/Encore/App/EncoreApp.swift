@@ -15,6 +15,8 @@ struct EncoreApp: App {
             TabView {
                 LiveSessionView(stage: stage)
                     .tabItem { Label("Live", systemImage: "waveform") }
+                MicListenView(stage: stage)
+                    .tabItem { Label("Listen", systemImage: "mic") }
                 PlaylistPreviewContainer {
                     PagePlaylist()
                 }

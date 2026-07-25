@@ -90,6 +90,74 @@ final class RecognitionStage: ObservableObject {
         // next ladder stages — embeddings, world catalog, then the Gemma ID card.
     }
 
+    // MARK: - iPhone-mic mode (no pendant — Mathieu's rig; also works in the
+    // simulator, where the Mac's mic is used)
+
+    @Published var micActive = false
+    @Published var micRMS: [Float] = []
+
+    private let engine = AVAudioEngine()
+    private var micConverter: AVAudioConverter?
+
+    func startMic() {
+        guard !micActive else { return }
+        AVAudioApplication.requestRecordPermission { [weak self] granted in
+            guard granted else { print("mic permission denied"); return }
+            DispatchQueue.main.async { self?.beginMicCapture() }
+        }
+    }
+
+    func stopMic() {
+        guard micActive else { return }
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        try? AVAudioSession.sharedInstance().setActive(false)
+        micActive = false
+    }
+
+    private func beginMicCapture() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.record, mode: .measurement)
+            try session.setActive(true)
+        } catch {
+            print("audio session: \(error)"); return
+        }
+        let input = engine.inputNode
+        let inFormat = input.outputFormat(forBus: 0)
+        guard let conv = AVAudioConverter(from: inFormat, to: format) else { return }
+        micConverter = conv
+        input.installTap(onBus: 0, bufferSize: 8192, format: inFormat) { [weak self] buf, _ in
+            self?.feedMic(buf)
+        }
+        do { try engine.start(); micActive = true }
+        catch { print("audio engine: \(error)") }
+    }
+
+    private func feedMic(_ buf: AVAudioPCMBuffer) {
+        guard let conv = micConverter else { return }
+        let ratio = format.sampleRate / buf.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buf.frameLength) * ratio) + 16
+        guard let out = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else { return }
+        var err: NSError?
+        var consumed = false
+        conv.convert(to: out, error: &err) { _, status in
+            if consumed { status.pointee = .noDataNow; return nil }
+            consumed = true; status.pointee = .haveData; return buf
+        }
+        guard err == nil, out.frameLength > 0 else { return }
+        matcher.match(buffer: out)
+        let ch = out.floatChannelData![0]
+        var acc: Float = 0
+        for i in 0..<Int(out.frameLength) { acc += ch[i] * ch[i] }
+        let rms = (acc / Float(out.frameLength)).squareRoot()
+        journal.appendEnergy(Double(rms) * 3)
+        DispatchQueue.main.async {
+            self.micRMS.append(rms)
+            if self.micRMS.count > 150 { self.micRMS.removeFirst(self.micRMS.count - 150) }
+        }
+    }
+
     private func handleEvent(_ ev: PendantEvent) {
         switch ev {
         case .pin:
