@@ -21,7 +21,9 @@ SCHEMA="$REPO_DIR/contracts/id_card.schema.json"
 MODELS_DIR="${GEMMA_DIR:-$HOME/models/gemma4}"
 HF_REPO="unsloth/gemma-4-E2B-it-GGUF"
 MODEL_NAME="gemma-4-E2B-it-UD-Q4_K_XL.gguf"
-MMPROJ_NAME="mmproj-BF16.gguf"
+# mmproj from ggml-org: it contains BOTH vision AND audio encoders — the
+# unsloth mmproj lacks the audio one, the model then hallucinates blind.
+MMPROJ_REPO="ggml-org/gemma-4-E2B-it-GGUF"
 
 echo "── 1/4 llama.cpp"
 if ! command -v llama-mtmd-cli >/dev/null 2>&1; then
@@ -31,15 +33,23 @@ fi
 echo "── 2/4 modèle (~2.5 Go au premier run, reprend si interrompu)"
 command -v hf >/dev/null 2>&1 || python3 -m pip install -q -U "huggingface_hub[cli]"
 mkdir -p "$MODELS_DIR"
-hf download "$HF_REPO" --include "*$MODEL_NAME" --include "*$MMPROJ_NAME*" \
+hf download "$HF_REPO" --include "*$MODEL_NAME" \
   --local-dir "$MODELS_DIR" >/dev/null || {
   echo "Téléchargement refusé — accepte la licence sur https://huggingface.co/$HF_REPO puis: hf auth login"; exit 1; }
+hf download "$MMPROJ_REPO" --include "*mmproj*" \
+  --local-dir "$MODELS_DIR/ggml" >/dev/null || {
+  echo "Téléchargement mmproj refusé — accepte la licence sur https://huggingface.co/$MMPROJ_REPO"; exit 1; }
 MODEL=$(find "$MODELS_DIR" -name "$MODEL_NAME" -type f | head -1)
-MMPROJ=$(find "$MODELS_DIR" -name "$MMPROJ_NAME" -type f | head -1)
+MMPROJ=$(find "$MODELS_DIR/ggml" -iname "*mmproj*bf16*.gguf" -type f | head -1)
+[ -n "$MMPROJ" ] || MMPROJ=$(find "$MODELS_DIR/ggml" -iname "*mmproj*.gguf" -type f | head -1)
 [ -n "$MODEL" ] && [ -n "$MMPROJ" ] || { echo "fichiers modèle introuvables dans $MODELS_DIR"; exit 1; }
 
+# <__media__> anchors the audio inside the prompt; -n 2048 because Gemma 4's
+# thinking block alone can eat 500+ tokens before the answer.
 run() { llama-mtmd-cli -m "$MODEL" --mmproj "$MMPROJ" --audio "$CLIP" \
-        --temp 1.0 --top-k 64 --top-p 0.95 -ngl 99 --jinja -n 512 -p "$1" 2>/dev/null; }
+        --temp 1.0 --top-k 64 --top-p 0.95 -ngl 99 --jinja -n 2048 \
+        -p "<__media__>
+$1" 2>/dev/null; }
 
 echo "── 3/4 TEST 1 — transcription (le modèle entend-il les paroles ?)"
 run "Transcribe the sung lyrics in this audio exactly. If there are no vocals, describe what you hear in one sentence." | tee /tmp/gemma_t1.txt
@@ -72,6 +82,9 @@ try:
 except Exception as e:
     print(f"NO-GO ✗ — l'ID card ne valide pas le schéma: {str(e).splitlines()[0]}"); sys.exit(1)
 print("GO ✓ — JSON conforme à contracts/id_card.schema.json")
+print()
+print("Étape suivante — servir le modèle à l'app iPhone :")
+print("  llama-server -m <model> --mmproj <mmproj> --host 0.0.0.0 --port 8080 -ngl 99 --jinja")
 print("Juge maintenant la QUALITÉ à l'oreille: genre/description cohérents ?"
       " lyrics_snippet correct sur un morceau chanté ?")
 PY
