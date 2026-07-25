@@ -10,3 +10,4 @@
 - 2026-07-24 Commit `ios/Encore.xcodeproj` (synchronized-folder format, no team id): clone → open → build must work for both of us on hackathon morning; overrides the earlier "no .xcodeproj in git" note.
 - 2026-07-24 Jade's PagePlaylist mockup (Liquid Glass, iOS 26) merged as the app's design-system reference: `DesignSystem/` tokens + background, demo data stays in `UI/PlaylistTrack.swift` until the journal wires in.
 - 2026-07-25 Selected for final pitch -> preorder landing page (landing/) at 42€, delivery 1 Oct 2026, checkout via Stripe Payment Link (placeholder until the real link is created in the Stripe dashboard).
+- 2026-07-25 Early-bird pricing: first 100 preorders at 42€ (delivery 1 Oct 2026); live Stripe Payment Link wired into landing CTAs + QR code for the pitch stage.

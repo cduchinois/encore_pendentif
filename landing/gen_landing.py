@@ -30,9 +30,11 @@ from gen_slides import (  # noqa: E402
 OUT = Path(__file__).parent / "index.html"
 ASSETS = Path(sys.argv[1]) if len(sys.argv) > 1 else None
 
-STRIPE_LINK = sys.argv[2] if len(sys.argv) > 2 else "https://buy.stripe.com/REPLACE_WITH_PAYMENT_LINK"
+STRIPE_LINK = sys.argv[2] if len(sys.argv) > 2 else "https://buy.stripe.com/bJe28j42kfBT1Yy3gSgrS00"
 PRICE = "42€"
 DELIVERY = "1 October 2026"
+QR_SVG = (Path(__file__).parent / "assets" / "qr.svg")
+QR_SVG = QR_SVG.read_text() if QR_SVG.exists() else ""
 
 
 def _asset(name):
@@ -202,6 +204,11 @@ body{{color:#fff;font-family:'Inter',-apple-system,'Helvetica Neue',sans-serif;
 .preorder p{{margin:18px auto 0;font-size:18px;color:rgba(255,255,255,0.75);max-width:620px}}
 .preorder .price-row{{justify-content:center}}
 .preorder .btn{{margin-top:26px}}
+.qr-wrap{{margin-top:38px;display:flex;flex-direction:column;align-items:center;gap:12px}}
+.qr-card{{display:block;background:#fff;padding:13px;border-radius:20px;line-height:0;
+  box-shadow:0 10px 40px rgba(0,0,0,0.35)}}
+.qr-card svg{{width:168px;height:168px;display:block}}
+.qr-note{{font-size:14px;color:rgba(255,255,255,0.6)}}
 
 .lp-footer{{border-top:1px solid rgba(255,255,255,0.1);padding:34px 0 44px;
   display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
@@ -253,13 +260,13 @@ def build_html():
     playlist. Everything runs locally on your iPhone.</p>
     <div class="price-row">
       <span class="price">{PRICE}</span>
-      <span class="price-note">preorder &middot; delivery {DELIVERY}</span>
+      <span class="price-note">early bird &middot; first 100 orders &middot; delivery {DELIVERY}</span>
     </div>
     <div class="cta-row">
       <a class="btn" href="{STRIPE_LINK}">Preorder now</a>
       <a class="btn ghost" href="#how">How it works</a>
     </div>
-    <p class="micro">Secure checkout via Stripe &middot; limited first batch</p>
+    <p class="micro">First 100 early-bird orders at {PRICE} &middot; secure checkout via Stripe</p>
   </div>
   <div class="hero-mock"><div class="mock-scale">
     <div class="phone"><div class="island"></div>{screen_session()}</div>
@@ -302,12 +309,16 @@ def build_html():
 </section>
 
 <section class="preorder wrap">
-  <h2>Be first in line.</h2>
-  <p>The first batch ships for <b>{DELIVERY}</b>. Preorder now for {PRICE} and
-  get your setlist back from every party this season.</p>
+  <h2>Be one of the first 100.</h2>
+  <p>The first <b>100 early-bird orders</b> get Encore for {PRICE}, delivered
+  <b>{DELIVERY}</b> &mdash; your setlist back from every party this season.</p>
   <div class="price-row"><span class="price">{PRICE}</span>
-    <span class="price-note">one-time &middot; delivery {DELIVERY}</span></div>
+    <span class="price-note">early bird &middot; first 100 orders &middot; delivery {DELIVERY}</span></div>
   <a class="btn" href="{STRIPE_LINK}">Preorder for {PRICE}</a>
+  <div class="qr-wrap">
+    <a class="qr-card" href="{STRIPE_LINK}" aria-label="Stripe checkout QR code">{QR_SVG}</a>
+    <span class="qr-note">or scan to preorder</span>
+  </div>
 </section>
 
 <footer class="lp-footer wrap">
