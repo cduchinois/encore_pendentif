@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/hero.jpg" alt="Encore — a heart-shaped pendant worn at a concert, with the live setlist appearing beside it. Catch the vibe so that you can enjoy it on the moment." width="100%">
+  <img src="docs/hero.svg" alt="Encore — a heart-shaped pendant worn at a concert, with the live setlist appearing beside it. Catch the vibe so that you can enjoy it on the moment." width="100%">
 </p>
 
 # Encore
