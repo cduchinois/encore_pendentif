@@ -64,8 +64,9 @@ final class RecognitionStage: ObservableObject {
         case .pin:
             pendant.pin(trackID: nil)
         case .privacyOn:
+            // pendantPending is owned by the UDP queue — never touch it here
+            // (main thread); a stale half-second of buffer is harmless.
             privacy = true
-            pendantPending.removeAll()
             pendant.journal.append(.privacy_on)
         case .privacyOff:
             privacy = false

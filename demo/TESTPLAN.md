@@ -18,6 +18,6 @@
 ## Manual demo checks (before each rehearsal)
 - [ ] airplane mode: recognition still works
 - [ ] double tap -> pin < 1 s, LED flash
-- [ ] long press -> privacy: no audio packets (check counter), LED off
+- [ ] ~~long press -> privacy~~ disabled for demo day (PRIVACY_GESTURE=0, see DECISIONS.md): grabbing the pendant fired it; re-enable the flag to test
 - [ ] recap generates < 30 s; playlist appears in Apple Music
 - [ ] battery: pendant survives 1 h streaming
