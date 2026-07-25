@@ -168,6 +168,11 @@ void pollTouch() {
     }
   } else { lastRaw = raw; sameCount = 0; }
   bool pressed = raw > touchBaseline + (touchBaseline * 2) / 5;   // +40%, tuned on real pad
+  // Slow baseline tracking: USB ground, surfaces and humidity shift the pad's
+  // idle level and the boot-time baseline goes stale (phantom PIN storms).
+  // Adapt ~1/256 of the gap per 20 ms loop (~5 s time constant), never while
+  // pressed so real touches don't get absorbed.
+  if (!pressed) touchBaseline += ((int32_t)raw - (int32_t)touchBaseline) / 256;
 #if TOUCH_DEBUG
   static uint32_t lastDbg = 0;
   if (now - lastDbg >= 500) {
@@ -195,7 +200,9 @@ void pollTouch() {
     if (!longFired && now - downAt < TAP_MAX_MS) {
       if (now - lastTapAt <= DOUBLE_TAP_MS) {
         lastTapAt = 0;
-        if (!privacyMode) {
+        static uint32_t lastPinAt = 0;             // 3 s cooldown: one moment = one pin
+        if (!privacyMode && now - lastPinAt >= 3000) {
+          lastPinAt = now;
           sendEvent(EV_PIN);
           startFlash(255, 255, 255);               // instant local feedback
           Serial.println("PIN");
