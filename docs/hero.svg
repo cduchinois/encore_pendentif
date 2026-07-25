@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1125" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <radialGradient id="stage" cx="72%" cy="18%" r="75%">
+      <stop offset="0%" stop-color="#3a4d1f"/>
+      <stop offset="35%" stop-color="#22301a"/>
+      <stop offset="70%" stop-color="#101710"/>
+      <stop offset="100%" stop-color="#070a07"/>
+    </radialGradient>
+    <linearGradient id="wordmark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b7f5c2"/>
+      <stop offset="55%" stop-color="#5ecb8a"/>
+      <stop offset="100%" stop-color="#2e8f7a"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c2418" stop-opacity="0.82"/>
+      <stop offset="100%" stop-color="#0d120c" stop-opacity="0.88"/>
+    </linearGradient>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="2000" height="1125" fill="url(#stage)"/>
+
+  <!-- stage lights and bokeh -->
+  <g filter="url(#soft)">
+    <ellipse cx="1500" cy="180" rx="420" ry="200" fill="#8fae3f" opacity="0.35"/>
+    <ellipse cx="1750" cy="90" rx="200" ry="120" fill="#d6e79a" opacity="0.30"/>
+    <ellipse cx="1150" cy="120" rx="220" ry="120" fill="#6f8f3a" opacity="0.25"/>
+  </g>
+  <g fill="#cde68a">
+    <circle cx="1622" cy="88" r="14" opacity="0.85"/><circle cx="1835" cy="150" r="9" opacity="0.6"/>
+    <circle cx="1420" cy="60" r="8" opacity="0.55"/><circle cx="1918" cy="64" r="12" opacity="0.7"/>
+    <circle cx="1706" cy="238" r="7" opacity="0.45"/><circle cx="1265" cy="200" r="6" opacity="0.4"/>
+    <circle cx="1540" cy="300" r="5" opacity="0.35"/><circle cx="1876" cy="330" r="6" opacity="0.35"/>
+  </g>
+  <!-- crowd silhouettes -->
+  <g fill="#050705" opacity="0.9">
+    <path d="M1050 1125 q40 -220 90 -215 q35 5 55 90 q30 -140 75 -135 q45 5 60 130 q25 -95 65 -90 q45 5 60 120 q30 -105 70 -100 q45 5 55 115 q25 -80 60 -75 q40 5 55 105 q25 -70 60 -65 q40 5 55 95 q20 -55 50 -50 q35 5 45 75 l45 0 L2000 1125 Z"/>
+    <path d="M1330 905 l14 -70 8 70 Z M1610 930 l12 -80 10 80 Z M1836 960 l12 -66 10 66 Z"/>
+  </g>
+
+  <!-- person: shoulder, tee, jacket -->
+  <g>
+    <path d="M0 1125 L0 260 q170 -60 320 -20 q90 25 150 95 q75 90 105 220 q40 175 45 570 Z" fill="#14170f"/>
+    <path d="M330 335 q120 60 175 190 q60 145 65 600 L120 1125 q-10 -420 30 -560 q45 -160 180 -230 Z" fill="#1d2114"/>
+    <path d="M300 250 q60 -95 90 -250 L560 0 q-30 170 -80 265 q-40 78 -95 115 Z" fill="#c69a76"/>
+  </g>
+
+  <!-- chain -->
+  <g stroke="#3d4436" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.95">
+    <path d="M360 130 q80 190 155 330 q60 115 95 240"/>
+    <g stroke="#565e4a" stroke-width="6">
+      <path d="M372 168 l26 52 M398 222 l26 52 M424 276 l26 52 M450 330 l26 50 M476 382 l24 48 M500 432 l24 48 M524 482 l22 48 M546 532 l20 46 M566 580 l18 46 M584 628 l14 44"/>
+    </g>
+  </g>
+
+  <!-- heart pendant with ECG -->
+  <g transform="translate(614,760)">
+    <path d="M0 -55 C -22 -105 -105 -105 -118 -48 C -128 -4 -92 42 0 108 C 92 42 128 -4 118 -48 C 105 -105 22 -105 0 -55 Z"
+          fill="#11150e" stroke="#2a2f24" stroke-width="8"/>
+    <polyline points="-86,-12 -58,-12 -46,-34 -30,14 -16,-52 -2,36 10,-16 26,-16 38,2 56,2 66,-12 84,-12"
+              fill="none" stroke="#9ee65f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+    <g fill="#9ee65f" filter="url(#glow)">
+      <circle cx="52" cy="-46" r="5"/><circle cx="70" cy="-40" r="4"/><circle cx="60" cy="-30" r="3.5"/>
+    </g>
+  </g>
+
+  <!-- glass setlist card -->
+  <g transform="translate(950,390)">
+    <rect x="0" y="0" width="470" height="410" rx="34" fill="url(#glass)" stroke="#6f7f5a" stroke-opacity="0.55" stroke-width="2"/>
+    <text x="34" y="58" fill="#c4d3a8" font-size="26">Live Set  ·  11:47 PM</text>
+    <g fill="#9ee65f"><rect x="398" y="34" width="6" height="20" rx="2" opacity="0.5"/><rect x="410" y="26" width="6" height="28" rx="2" opacity="0.75"/><rect x="422" y="18" width="6" height="36" rx="2"/></g>
+
+    <rect x="22" y="86" width="426" height="66" rx="18" fill="#28301c" stroke="#9ee65f" stroke-opacity="0.5" stroke-width="1.5"/>
+    <text x="42" y="128" fill="#e6d98a" font-size="27">00:14</text>
+    <text x="128" y="128" font-size="26">📌</text>
+    <text x="168" y="128" fill="#f2f5ea" font-size="28">One More Time</text>
+    <text x="366" y="124" fill="#9ee65f" font-size="17" letter-spacing="1.5">PINNED</text>
+
+    <g font-size="28">
+      <text x="42" y="204" fill="#e6d98a" font-size="27">00:19</text><text x="128" y="204" fill="#e9eee0">Music Sounds Better With You</text>
+      <text x="42" y="266" fill="#e6d98a" font-size="27">00:24</text><text x="128" y="266" fill="#e9eee0">Around the World</text>
+      <text x="42" y="328" fill="#e6d98a" font-size="27">00:29</text><text x="128" y="328" fill="#e9eee0">Harder, Better, Faster, Stronger</text>
+    </g>
+
+    <line x1="28" y1="352" x2="442" y2="352" stroke="#5c6a4a" stroke-opacity="0.6" stroke-width="1.5"/>
+    <g transform="translate(36,364)">
+      <path d="M14 4 C 9 -6 -8 -6 -10 6 C -12 15 -4 24 14 36 C 32 24 40 15 38 6 C 36 -6 19 -6 14 4 Z" fill="none" stroke="#9ee65f" stroke-width="3.5"/>
+      <polyline points="-4,17 4,17 8,9 13,25 18,12 24,17 32,17" fill="none" stroke="#9ee65f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="96" y="392" fill="#b9e08a" font-size="26">Saved to Encore</text>
+  </g>
+
+  <!-- wordmark + tagline -->
+  <text x="1930" y="905" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-weight="bold" font-size="150" fill="url(#wordmark)" filter="url(#glow)">Encore</text>
+  <text x="1385" y="985" fill="#eef2e6" font-size="42" letter-spacing="6">catch the vibe so that you</text>
+  <text x="1385" y="1045" fill="#eef2e6" font-size="42" letter-spacing="6">can enjoy it on the moment.</text>
+</svg>
