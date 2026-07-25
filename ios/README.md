@@ -64,6 +64,24 @@ Before committing, check `git diff ios/Encore.xcodeproj` — only commit project
 | `Playlist/MusicKitExporter.swift` | "Want to live this night Encore?" → recap (Gemma) + playlist in Apple Music, pins first | 4 (15:00) |
 | `Resolve/SerpAPIClient.swift` | Bonus: deferred resolution client when WiFi returns (mirrors `pipeline/resolve/`) | bonus |
 
+## Gates 1-2 are implemented — how to test (2026-07-25)
+
+Implemented: `UDPAudioReceiver`, `ShazamKitMatcher`, `RecognitionStage`,
+`SessionStore`, `CatalogStore` + the bundled catalog (`Catalog/catalog.json`
++ 388 `Catalog/signatures/*.shazamsignature`, see `data/catalog_manifest.md`).
+The app opens on a **Live** tab (waveform + stats + current match); the
+Playlist mockup sits in the second tab.
+
+1. Open `Encore.xcodeproj`, build on the iPhone that hosts the hotspot.
+2. First launch: **accept the "local network" permission popup** — without it
+   zero packets arrive (the key is set via `INFOPLIST_KEY_NSLocalNetworkUsageDescription`).
+3. Pendant on → green dot, ~50 fps, waveform moves (gate 1). Double-tap → a
+   `pin` event in the list.
+4. Wait for "catalog…" to disappear (~few s: 388 signatures load into the
+   `SHCustomCatalog`), play a track from Mathieu's `Ultimate/` folder on a
+   speaker → title appears in <10 s, pendant flashes purple (gate 2).
+   A match needs 3-5 s of audio; frequent no-matches between tracks are normal.
+
 ## Tasks to be accomplished (day-of, in gate order)
 
 - [ ] UDP receiver + ring buffer + visible waveform (gate 1 — streaming is the biggest risk, validate first).
