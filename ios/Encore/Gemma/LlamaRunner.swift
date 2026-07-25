@@ -23,13 +23,27 @@ struct LlamaRunner {
     var serverURL: URL?          // llama-server base, e.g. http://172.20.10.2:8080
     var geminiKey: String?
 
-    static let prompt = """
+    /// Full card, lyrics included — for backends that can actually transcribe
+    /// sung vocals (server-class models).
+    static let promptFull = """
     You listen to a 20 second club recording. Return ONLY a JSON object with \
     keys: genre (string), description (string, one sentence), has_vocals \
     (boolean), confidence (number 0-1), lyrics_snippet (string or null, only \
     include words you clearly hear). Never guess a song title or artist name. \
     No text outside the JSON.
     """
+
+    /// Reduced card for Gemma E2B: its audio encoder is speech-oriented and
+    /// hallucinates sung lyrics (observed on the Mac test) — so we don't ask.
+    static let promptLite = """
+    You listen to a 20 second club recording. Return ONLY a JSON object with \
+    keys: genre (string), description (string, one sentence describing \
+    instruments, energy and mood), has_vocals (boolean), confidence \
+    (number 0-1), lyrics_snippet (always null). Never guess a song title or \
+    artist name. No text outside the JSON.
+    """
+
+    var prompt: String { backend == .llamaServer ? Self.promptLite : Self.promptFull }
 
     /// Runs the backend on the wav and returns a schema-shaped ID card.
     /// bpm/tsStartMs are stamped by the caller (DSP + journal clock).
@@ -64,7 +78,7 @@ struct LlamaRunner {
             "messages": [[
                 "role": "user",
                 "content": [
-                    ["type": "text", "text": Self.prompt],
+                    ["type": "text", "text": prompt],
                     ["type": "input_audio",
                      "input_audio": ["data": audio.base64EncodedString(), "format": "wav"]],
                 ],
@@ -93,7 +107,7 @@ struct LlamaRunner {
         let body: [String: Any] = [
             "contents": [[
                 "parts": [
-                    ["text": Self.prompt],
+                    ["text": prompt],
                     ["inline_data": ["mime_type": "audio/wav",
                                      "data": audio.base64EncodedString()]],
                 ],
