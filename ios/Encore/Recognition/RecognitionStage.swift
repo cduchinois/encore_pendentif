@@ -10,6 +10,7 @@
 //  only when it changes (source: local_catalog).
 
 import Foundation
+import Combine
 import AVFoundation
 
 final class RecognitionStage: ObservableObject {

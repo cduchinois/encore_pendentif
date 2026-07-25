@@ -6,6 +6,7 @@
 //  and heartbeats. Also sends CMD_LED back to the pendant.
 
 import Foundation
+import Combine
 import Network
 
 enum PendantEvent: UInt8 {

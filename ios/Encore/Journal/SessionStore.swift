@@ -5,6 +5,7 @@
 //  must stay identical to the schema (snake_case, same enums).
 
 import Foundation
+import Combine
 
 struct JournalEvent: Codable, Identifiable {
     var id: Int { ts_ms }
