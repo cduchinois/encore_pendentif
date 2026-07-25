@@ -219,7 +219,9 @@ struct PagePlaylist: View {
 /// Vertical timeline: continuous rail + dots at each timestamp + track cards
 /// on the right. Rail is a single Rectangle drawn behind all rows (via
 /// ZStack) so it never breaks between rows.
-private struct SetlistTimeline: View {
+/// Internal (not private): LiveSessionView renders the live journal with the
+/// exact same timeline.
+struct SetlistTimeline: View {
 
     let tracks: [PlaylistTrack]
 
