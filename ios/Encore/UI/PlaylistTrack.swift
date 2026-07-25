@@ -17,6 +17,9 @@ struct PlaylistTrack: Identifiable, Hashable {
     var isPinned: Bool = false
     /// When true, the timeline dot renders with a "live" pulsing sonar animation.
     var isPlaying: Bool = false
+    /// catalog.sqlite id for live rows (nil for demo data and unknown tracks);
+    /// used by tap-to-pin.
+    var catalogID: Int? = nil
 }
 
 enum PlaylistDemoData {

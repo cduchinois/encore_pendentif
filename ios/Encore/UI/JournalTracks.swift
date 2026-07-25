@@ -1,15 +1,17 @@
 //  JournalTracks.swift
 //  Encore
 //
-//  Bridge between the journal (contracts/journal.schema.json) and the
-//  setlist UI model: track_match events become PlaylistTrack rows, shared by
-//  PendantPage and PhonePage.
+//  Bridge between a journal (contracts/journal.schema.json) and the setlist
+//  UI model: track_match events become PlaylistTrack rows, shared by
+//  PendantPage and PhonePage. Timestamps are wall-clock (22:41), not
+//  elapsed time.
 
 import Foundation
 
 extension SessionStore {
     /// journal track_match events -> the model SetlistTimeline renders.
-    /// Pinned = a pin event references the same track; playing = last match.
+    /// track_id == nil = unmatched music ("unknown"); pinned = a pin event
+    /// references the same track; playing = last row.
     var playlistTracks: [PlaylistTrack] {
         let pinnedIDs = Set(events.filter { $0.kind == .pin }.compactMap(\.track_id))
         let matches = events.filter { $0.kind == .track_match }
@@ -18,18 +20,22 @@ extension SessionStore {
             return PlaylistTrack(
                 index: i + 1,
                 title: meta?.title ?? "Titre inconnu",
-                artist: meta?.artist ?? "",
-                timestamp: Self.mmss(ev.ts_ms),
+                artist: meta?.artist ?? "en attente d'identification",
+                timestamp: clock(ev.ts_ms),
                 duration: nil,
                 bpm: meta?.bpm.map { Int($0) },
                 isPinned: ev.track_id.map { pinnedIDs.contains($0) } ?? false,
-                isPlaying: i == matches.count - 1
+                isPlaying: i == matches.count - 1,
+                catalogID: ev.track_id
             )
         }
     }
 
-    private static func mmss(_ ms: Int) -> String {
-        let s = ms / 1000
-        return String(format: "%02d:%02d", s / 60, s % 60)
+    /// Wall-clock "HH:mm" of session start + ts_ms.
+    private func clock(_ ms: Int) -> String {
+        let date = startedAt.addingTimeInterval(Double(ms) / 1000)
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: date)
     }
 }

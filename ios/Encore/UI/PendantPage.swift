@@ -12,12 +12,14 @@ import SwiftUI
 struct PendantPage: View {
     @ObservedObject var stage: RecognitionStage
     @ObservedObject var receiver: UDPAudioReceiver
+    @ObservedObject var pipeline: CapturePipeline
     @ObservedObject var journal: SessionStore
 
     init(stage: RecognitionStage) {
         self.stage = stage
         self.receiver = stage.receiver
-        self.journal = stage.journal
+        self.pipeline = stage.pendant
+        self.journal = stage.pendant.journal
     }
 
     var body: some View {
@@ -38,7 +40,9 @@ struct PendantPage: View {
                     if journal.playlistTracks.isEmpty {
                         emptySetlist
                     } else {
-                        SetlistTimeline(tracks: journal.playlistTracks)
+                        SetlistTimeline(tracks: journal.playlistTracks) { track in
+                            pipeline.pin(trackID: track.catalogID)
+                        }
                     }
                 }
                 .padding(.horizontal, Theme.Space.screenH)

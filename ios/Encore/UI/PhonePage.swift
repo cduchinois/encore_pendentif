@@ -9,11 +9,13 @@ import SwiftUI
 
 struct PhonePage: View {
     @ObservedObject var stage: RecognitionStage
+    @ObservedObject var pipeline: CapturePipeline
     @ObservedObject var journal: SessionStore
 
     init(stage: RecognitionStage) {
         self.stage = stage
-        self.journal = stage.journal
+        self.pipeline = stage.phone
+        self.journal = stage.phone.journal
     }
 
     var body: some View {
@@ -34,7 +36,9 @@ struct PhonePage: View {
                     if journal.playlistTracks.isEmpty {
                         emptySetlist
                     } else {
-                        SetlistTimeline(tracks: journal.playlistTracks)
+                        SetlistTimeline(tracks: journal.playlistTracks) { track in
+                            pipeline.pin(trackID: track.catalogID)
+                        }
                     }
                 }
                 .padding(.horizontal, Theme.Space.screenH)

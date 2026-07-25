@@ -224,6 +224,8 @@ struct DemoPage: View {
 struct SetlistTimeline: View {
 
     let tracks: [PlaylistTrack]
+    /// When set, tapping a track card pins it (live pages). Nil on DemoPage.
+    var onPin: ((PlaylistTrack) -> Void)? = nil
 
     /// Horizontal rail position (from the timeline's leading edge).
     /// Timestamp column = 46pt, dot centered in the 20pt that follow.
@@ -247,7 +249,8 @@ struct SetlistTimeline: View {
                     TimelineTrackRow(
                         track: track,
                         timestampColumnWidth: timestampColumnWidth,
-                        dotColumnWidth: dotColumnWidth
+                        dotColumnWidth: dotColumnWidth,
+                        onPin: onPin
                     )
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -261,6 +264,7 @@ private struct TimelineTrackRow: View {
     let track: PlaylistTrack
     let timestampColumnWidth: CGFloat
     let dotColumnWidth: CGFloat
+    var onPin: ((PlaylistTrack) -> Void)? = nil
 
     /// The dot only reflects `isPlaying`. The pinned state is rendered as an
     /// aurora outline on the card, not on the dot.
@@ -294,6 +298,7 @@ private struct TimelineTrackRow: View {
             // shift.
             trackCard
                 .padding(.leading, 10)
+                .onTapGesture { onPin?(track) }
         }
     }
 

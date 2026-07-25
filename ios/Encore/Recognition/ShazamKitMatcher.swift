@@ -1,11 +1,11 @@
 //  ShazamKitMatcher.swift
 //  Encore
 //
-//  Stage 1 of the recognition ladder: offline SHCustomCatalog built from the
-//  bundled reference signatures. Match results carry the catalog.sqlite id.
+//  Builds the shared SHCustomCatalog from the bundled reference signatures.
+//  Each CapturePipeline opens its own SHSession against this one catalog —
+//  the catalog is immutable and safe to share; sessions are not.
 
 import Foundation
-import AVFoundation
 import ShazamKit
 
 struct EncoreMatch {
@@ -15,18 +15,11 @@ struct EncoreMatch {
     let offset: TimeInterval
 }
 
-final class ShazamKitMatcher: NSObject, SHSessionDelegate {
+enum ShazamCatalogBuilder {
     static let trackIDProperty = SHMediaItemProperty("encore_track_id")
 
-    /// Called on an arbitrary ShazamKit queue.
-    var onMatch: ((EncoreMatch) -> Void)?
-    var onNoMatch: (() -> Void)?
-
-    private var session: SHSession?
-    private(set) var referenceCount = 0
-
-    /// Build the custom catalog from the bundle. ~388 signatures, a few seconds; call off-main once.
-    func loadCatalog() {
+    /// ~388 signatures, a few seconds; call off-main once at launch.
+    static func build() -> (catalog: SHCustomCatalog, count: Int)? {
         let catalog = SHCustomCatalog()
         var loaded = 0
         for url in CatalogStore.signatureURLs() {
@@ -37,38 +30,16 @@ final class ShazamKitMatcher: NSObject, SHSessionDelegate {
             let item = SHMediaItem(properties: [
                 .title: meta?.title ?? "Track \(id)",
                 .artist: meta?.artist ?? "",
-                Self.trackIDProperty: id,
+                trackIDProperty: id,
             ])
             do {
                 try catalog.addReferenceSignature(sig, representing: [item])
                 loaded += 1
             } catch {
-                print("Matcher: signature \(id) rejected: \(error)")
+                print("Catalog: signature \(id) rejected: \(error)")
             }
         }
-        referenceCount = loaded
-        print("Matcher: \(loaded) reference signatures loaded")
-        let s = SHSession(catalog: catalog)
-        s.delegate = self
-        session = s
-    }
-
-    func match(buffer: AVAudioPCMBuffer) {
-        session?.matchStreamingBuffer(buffer, at: nil)
-    }
-
-    // MARK: SHSessionDelegate
-
-    func session(_ session: SHSession, didFind match: SHMatch) {
-        guard let item = match.mediaItems.first,
-              let id = item[Self.trackIDProperty] as? Int else { return }
-        onMatch?(EncoreMatch(trackID: id,
-                             title: item.title ?? "?",
-                             artist: item.artist ?? "?",
-                             offset: item.predictedCurrentMatchOffset))
-    }
-
-    func session(_ session: SHSession, didNotFindMatchFor signature: SHSignature, error: Error?) {
-        onNoMatch?()
+        print("Catalog: \(loaded) reference signatures loaded")
+        return loaded > 0 ? (catalog, loaded) : nil
     }
 }
