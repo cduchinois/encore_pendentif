@@ -1,12 +1,15 @@
+<p align="center">
+  <img src="docs/hero.jpg" alt="Encore — a heart-shaped pendant worn at a concert, with the live setlist appearing beside it. Catch the vibe so that you can enjoy it on the moment." width="100%">
+</p>
+
 # Encore
 
-**Encore is an intelligent pendant that captures every track, transition, and emotion of a DJ set — in real time and entirely on-device — so you can stay present, have fun, and enjoy the party without reaching for your phone. Then, Encore turns it all into a playlist that lets you relive the party, encore and encore.**
+**Catch the vibe so that you can enjoy it on the moment.**
 
-Built at the **Gemma 4 Hackathon Paris (2026-07-25)**. Tracks: Edge/On-Device (main), Context Engineering for SLMs (Alien Intelligence), NVIDIA GPU Challenge (optional stretch).
+Encore is an intelligent pendant that captures every track, transition, and emotion of a DJ set — in real time and **entirely on-device** — so you can stay present and enjoy the party without reaching for your phone. Afterwards, Encore turns your night into a timestamped setlist, your pinned moments, and a ready-to-play playlist.
+
+Built in **1 day** at the **Gemma 4 Hackathon Paris (2026-07-25)** — Edge/On-Device track.
 Team: **Jade** (iOS + firmware), **Mathieu** (pipeline + data).
-
-> Start here: [`CLAUDE.md`](CLAUDE.md) (context + repo rules) → [`PLAN.md`](PLAN.md) (the day, gate by gate) → [`docs/PROPOSAL.md`](docs/PROPOSAL.md) (full PRD).
-> After creating the GitHub repo, run `./bootstrap.sh` once to create labels, the freeze milestone and all work-item issues.
 
 ---
 
@@ -36,23 +39,13 @@ The pendant listens discreetly while your phone identifies, understands, and org
 
 At the heart of Encore is **Gemma, a powerful local AI model running directly on your phone**. It understands context, connects moments, organizes tracks, detects highlights, and transforms raw music recognition into a meaningful memory of your night.
 
-It does not simply collect song titles.
-
-**It reconstructs the experience around them.**
-
 When a track means something, there is only one gesture:
 
 ***Tap the pendant.***
 
 Encore instantly pins the moment, so you can return to it later without leaving the dance floor.
 
-Later, Encore lets you live the night *one more time*: a timestamped setlist, the transitions between tracks, your highlighted moments, the atmosphere of the room, and a complete playlist ready for Apple Music or Spotify.
-
-**All the intelligence lives on your phone. Nothing is sent to the cloud.**
-
-For the hackathon, we are building an embedded catalog of **3,000 tracks — including rare edits, bootlegs, and unreleased music — that fits within just a few dozen megabytes on an iPhone.**
-
-**No servers. No network dependency. No compromise on privacy.**
+Later, Encore lets you live the night *one more time*: a timestamped setlist, the transitions between tracks, your highlighted moments, and a complete playlist ready for Apple Music or Spotify.
 
 Positioning: **Shazam identifies songs. Encore captures the emotion of the party — so you can live it encore and encore.**
 
@@ -60,17 +53,38 @@ Positioning: **Shazam identifies songs. Encore captures the emotion of the party
 
 ![Encore architecture — pendant streams audio to the iPhone, which runs the recognition ladder and Gemma locally; the Mac prepares the catalog the night before; the cloud only resolves unknowns later](docs/architecture.svg)
 
-**The recognition ladder** (most precise → most robust): local fingerprint (ShazamKit custom catalog, 100% offline, 3–5 s) → embeddings similarity → Shazam world catalog (if online) → **Gemma ID card** (the model listens and describes what nothing else recognizes). Nothing is ever lost: every unknown keeps its clip, fingerprint, embedding and ID card for deferred resolution when network returns (SerpAPI lyrics/tracklist search, arbitrated by Gemma).
+**The recognition ladder** (most precise → most robust): local fingerprint (ShazamKit custom catalog, 100% offline, 3–5 s) → embeddings similarity → Shazam world catalog (if online) → **Gemma ID card** (the model listens and describes what nothing else recognizes). Nothing is ever lost: every unknown keeps its clip, fingerprint, embedding and ID card for deferred resolution when network returns.
 
-**Gemma 4 E2B is the permanent brain** (llama.cpp or Google AI Edge, on-iPhone): it detects and qualifies transitions, tags highlight moments from crowd volume + pins, produces structured ID cards for unknowns (BPM/key injected by DSP, never guessed), arbitrates deferred-resolution candidates, and writes the end-of-night recap.
+**Everything on the critical path runs on the edge**: capture on the pendant; fingerprint, embeddings, Gemma inference, timeline and recap on the iPhone. No server of ours. The cloud (SerpAPI, links, playlist) is deferred, optional enrichment only.
 
-**Context engineering layer** (Alien Intelligence track): a two-stage context compiler keeps a small edge model useful — (1) the party state compressed into an ultra-compact structured representation, (2) ~50 KB of raw SERP JSON reduced to <1000 tokens of structured evidence. A benchmark (correct resolutions per context token) is the jury artifact.
+## 4. Why fully local
 
-**What is "edge"?** The entire critical path: capture on the pendant; fingerprint, embeddings, Gemma inference, timeline and recap on the iPhone. No server of ours. Party audio is processed and discarded on the spot — privacy by construction. The cloud (SerpAPI, links, playlist) is deferred, optional enrichment only. **The cloud improves Encore, but Encore doesn't need the cloud.**
+- **Privacy by construction.** The pendant hears an entire night of a party — conversations included. Party audio is processed and discarded on the spot; nothing ever leaves the phone. That is only acceptable if *nothing* is streamed to a server.
+- **It works where the music actually is.** Clubs, basements, festivals: no signal, saturated networks, airplane mode. Encore's whole recognition and understanding path works with zero connectivity. **The cloud improves Encore, but Encore doesn't need the cloud.**
 
-## 4. Repository map
+## 5. How: recognition + Gemma
 
-Every module has its own README with how it works, its current status, and the tasks to accomplish:
+- **Music recognition** uses **ShazamKit with a custom on-device catalog** — the iOS equivalent of Google's music recognition stack. It is one interchangeable rung of the ladder: a Google/Android recognition backend can be integrated later without changing anything else.
+- **Gemma is the brain, and it's multimodal.** Gemma (like Gemini) accepts **audio natively as input** — which is exactly what this project needs. When fingerprinting fails (bootlegs, transitions, unreleased tracks), Gemma *listens* to the clip and produces a structured ID card (genre, era, mood, BPM/key injected by DSP). It also qualifies transitions, tags highlight moments, arbitrates deferred-resolution candidates, and writes the end-of-night recap.
+- **Small enough for the edge.** Gemma 4 E2B runs on-device, kept sharp by a two-stage context compiler that compresses the party state and any retrieved evidence into a minimal token budget.
+
+## 6. Where we are — honest status
+
+One hackathon day is short. We prioritized proving each link of the chain, in order:
+
+| Step | Status |
+|---|---|
+| Pendant → iPhone audio streaming (ESP32-S3, UDP) | ✅ working |
+| On-device recognition (ShazamKit custom catalog, offline) | ✅ working |
+| Gemma via API — audio in, ID card out | ✅ tested, works well |
+| Gemma running **locally on the Mac** (same pipeline in Python) | ✅ working |
+| Gemma **inside the iOS app** | 🔜 ~2–4 h of work remaining |
+
+Embedding Gemma in the mobile app is the last mile; it didn't fit in the single hackathon day. **We are implementing it this weekend and will update this repo.** The Mac pipeline (`pipeline/`) runs the exact same logic today and serves as the reference implementation.
+
+## 7. Repository map
+
+Every module has its own README with how it works and its current status:
 
 | Folder | What it is | README |
 |---|---|---|
@@ -81,70 +95,22 @@ Every module has its own README with how it works, its current status, and the t
 | `data/` | Catalog + demo set + golden clips (payloads gitignored; manifests committed) | [data/README.md](data/README.md) |
 | `demo/` | 5-minute demo script, test plan, backup HTML dashboard | [demo/README.md](demo/README.md) |
 | `hardware/` | 3D-printed case generator + STLs, wiring guide | [hardware/README.md](hardware/README.md) |
-| `docs/` | The full PRD ([PROPOSAL.md](docs/PROPOSAL.md)) — product reference, edits are product decisions | — |
+| `docs/` | The full PRD ([PROPOSAL.md](docs/PROPOSAL.md)) — product reference | — |
 
-## 5. Scaffold status (what's real today)
-
-**Working code**: firmware capture/streaming core, catalog fingerprinting + enrichment scripts, the macOS ShazamKit signature helper, the case generator, the recap dashboard mockup.
-
-**Stubs awaiting day-of implementation**: all iOS Swift modules (the Xcode project is created locally, see [ios/README.md](ios/README.md)), the context compiler, the SerpAPI resolver, the benchmark, firmware touch/LED/heartbeat.
-
-**To produce before the 25th** (prep, allowed by the rules): the fingerprinted catalog, the enriched demo subset, the anti-Shazam audit, the golden clips, the fake unreleased beat, the printed case. See each module README for the precise task list.
-
-## 6. Day-of plan and gates
-
-Full schedule in [`PLAN.md`](PLAN.md). The demo path is sacred:
-
-- **10:30** — audio frames land in the iOS app (gate 1)
-- **12:00** — local catalog match on a minimal timeline (gate 2)
-- **13:30** — pin event + Gemma ID card on an unknown clip (gate 3)
-- **15:00** — **FREEZE**: recap + playlist work, demo rehearsed (gate 4). After freeze, `main` accepts demo fixes only; bonuses stay on branches.
-
-Miss a gate by >45 min → cut scope downward, never extend.
-
-**Must work**: pendant→iPhone streaming, local fingerprint, timeline, pin, Gemma ID card, recap, playlist.
-**Bonus if time**: live SerpAPI resolution, context benchmark chart, embeddings stage, world-catalog stage.
-**Roadmap (cut without regret)**: autonomous listening (deep sleep + music-onset wake), multi-user, accounts, App Store, final enclosure, per-scene catalog packs (a 1M-track catalog would be 10–20 GB at ~15 KB/track; the real product answer is scene packs of a few hundred MB).
-
-## 7. The demo (5 minutes)
-
-Full script: [`demo/demo_script.md`](demo/demo_script.md). Seven beats: passive recognition → **the Shazam duel** (rare bootleg + overlapped transition; a judge Shazams live and fails, Encore displays offline) → airplane mode → the pin → our unreleased beat (Gemma ID card, then live SerpAPI resolution) → *"Want to live this night Encore?"* → recap + Apple Music playlist created in front of the jury.
-
-Closing line: *"Shazam gives you a title. Encore gives you back your night."*
-
-## 8. Sponsor technologies
-
-| Sponsor | Use |
-|---|---|
-| **Gemma 4 (Google DeepMind)** | E2B local on iPhone, permanent brain: ID cards (native audio in), transitions, moments, recap, candidate arbitration. Native function calling + structured JSON output. |
-| **SerpAPI** | Deferred ID resolution (lyrics, YouTube, tracklists) + cultural enrichment of the recap (artwork, upcoming shows). |
-| **Alien Intelligence** | Context Engineering track: the two-stage context compiler + accuracy-per-token benchmark. |
-| **NVIDIA (optional)** | Server variant: same pipeline on Gemma 4 + vLLM for the multi-stream "whole club" case, only if time allows. |
-
-## 9. Quick commands
+## 8. Quick commands
 
 ```bash
 # Pipeline setup
 cd pipeline && pip install -r requirements.txt
 
-# Catalog fingerprint (Mathieu, overnight, on the Mac)
+# Catalog fingerprint (on the Mac)
 python pipeline/ingest/fingerprint_catalog.py --music-dir <dir>
-
-# Enrichment (demo subset first)
-python pipeline/ingest/enrich_catalog.py --priority data/demo_set/demo_tracks.txt
 
 # Pipeline tests
 cd pipeline && pytest
 
 # Firmware build + flash (XIAO plugged in)
 cd firmware && pio run -t upload
-
-# Context benchmark
-python pipeline/bench/context_bench.py
 ```
 
-Secrets live in `.env` (gitignored) — names listed in `.env.example`. Never in git; if a key lands in a commit, rotate it immediately.
-
-## 10. Repo rules (short version)
-
-Trunk-based; branches `feat/<issue#>-short-name`; commit prefixes `ios:` / `fw:` / `pipe:` / `data:` / `docs:`; merge to `main` only with green tests; never change a message format or JSON shape in code before changing [`contracts/`](contracts/README.md) first. Decisions get one line each in [`DECISIONS.md`](DECISIONS.md). Full rules: [`CLAUDE.md`](CLAUDE.md).
+Secrets live in `.env` (gitignored) — names listed in `.env.example`. Full repo rules: [`CLAUDE.md`](CLAUDE.md).
