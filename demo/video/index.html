@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Encore — 60s short</title>
+<style>
+  :root {
+    /* In-app palette (from the iOS screenshots) */
+    --bg: #0A0F08;
+    --room-green: #56761F;
+    --lime: #B6E354;
+    --accent: #30D158;
+    --glass: rgba(126, 155, 84, 0.30);
+    --glass-strong: rgba(126, 155, 84, 0.42);
+    --glass-stroke: rgba(255, 255, 255, 0.20);
+    --text: #FFFFFF;
+    --text-dim: rgba(255, 255, 255, 0.60);
+    --privacy: #FF6B3D;
+    --fail-red: #FF453A;
+    /* Brand palette (logo redesign — "Feel the beat") */
+    --brand-bg: #1C1626;
+    --brand-1: #F9A8D4;
+    --brand-2: #E0699B;
+    --brand-3: #FBCFA4;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  #stage {
+    position: relative; overflow: hidden;
+    width: 1080px; height: 1920px;
+    background: var(--bg);
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+    color: var(--text);
+  }
+  .scene { position: absolute; inset: 0; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; padding: 110px 80px; }
+  .punchline { font-size: 76px; font-weight: 700; line-height: 1.08; text-align: center;
+               text-wrap: balance; text-shadow: 0 4px 40px rgba(0,0,0,.6); }
+  .label { font-size: 30px; font-weight: 600; letter-spacing: 0.18em;
+           text-transform: uppercase; color: var(--text-dim); }
+  .glass { background: var(--glass); border: 1.5px solid var(--glass-stroke);
+           border-radius: 32px; backdrop-filter: blur(28px); }
+
+  /* Party backdrop: green wash + vertical venue light streaks (as in the app photos) */
+  .party-bg { position: absolute; inset: -60px; z-index: -1; background:
+      linear-gradient(105deg, transparent 46%, rgba(246,255,200,.55) 47.2%, transparent 48.4%),
+      linear-gradient(105deg, transparent 64%, rgba(246,255,200,.40) 65%, transparent 66%),
+      radial-gradient(70% 45% at 50% 12%, rgba(182,227,84,.42), transparent 70%),
+      radial-gradient(90% 70% at 50% 85%, var(--room-green), transparent 78%),
+      var(--bg); }
+  .brand-bg { position: absolute; inset: 0; z-index: -1; background:
+      radial-gradient(70% 50% at 50% 30%, rgba(224,105,155,.22), transparent 70%),
+      var(--brand-bg); }
+  .brand-text { background: linear-gradient(100deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3));
+                -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* --- Real app UI, rebuilt (One More Time recap + Titre inconnu card) --- */
+  .app { width: 100%; padding: 0 26px; }
+  .app .brand-label { font-size: 26px; letter-spacing: .22em; color: var(--text-dim);
+                      font-weight: 600; }
+  .app h2 { font-size: 88px; font-weight: 700; margin-top: 10px; }
+  .app .subtitle { font-size: 34px; color: var(--text-dim); margin-top: 12px; }
+
+  .session { margin-top: 44px; padding: 44px 48px; }
+  .session .head { display: flex; justify-content: space-between; align-items: center; }
+  .session .wf { display: flex; align-items: center; gap: 6px; height: 110px; margin: 36px 0 8px; }
+  .session .wf i { flex: 1; border-radius: 3px; background: rgba(255,255,255,.85); }
+  .session .stats { display: flex; }
+  .session .stats > div { flex: 1; text-align: center; }
+  .session .stats b { font-size: 62px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .session .stats .label { margin-top: 8px; font-size: 26px; }
+
+  .setlist-head { display: flex; justify-content: space-between; align-items: baseline;
+                  margin: 52px 0 34px; }
+  .setlist-head .h { font-size: 52px; font-weight: 700; }
+  .row { display: flex; align-items: stretch; gap: 24px; margin-bottom: 26px; }
+  .row .ts { width: 118px; font-size: 32px; color: var(--text-dim); padding-top: 30px;
+             text-align: right; font-variant-numeric: tabular-nums; }
+  .row .dot { width: 18px; height: 18px; border-radius: 50%; background: #fff;
+              margin-top: 40px; flex: none; opacity: .9; }
+  .track { flex: 1; padding: 30px 36px; }
+  .track .title { font-size: 42px; font-weight: 600; }
+  .track .artist { font-size: 34px; color: var(--text-dim); margin-top: 6px; }
+  .track .meta { font-size: 30px; color: var(--text-dim); margin-top: 14px; }
+
+  /* Pinned card: rainbow-glow border, exactly like the app */
+  .pinned { position: relative; border: 2px solid transparent;
+            background: linear-gradient(rgba(18,26,10,.82), rgba(18,26,10,.82)) padding-box,
+                        linear-gradient(95deg, #F9A8D4, #FDE68A 30%, #A7F3D0 55%, #93C5FD 80%, #F9A8D4) border-box;
+            box-shadow: 0 0 60px rgba(249,168,212,.35), 0 0 24px rgba(147,197,253,.30); }
+
+  .pill { display: flex; align-items: center; justify-content: center; gap: 18px;
+          padding: 34px 0; font-size: 40px; font-weight: 600; border-radius: 999px; }
+
+  /* Titre inconnu (Gemma) card */
+  .gemma .title { font-size: 48px; font-weight: 700; }
+  .gemma .genre { font-size: 36px; color: var(--text-dim); margin-top: 8px; }
+  .gemma .bpm { font-size: 32px; color: var(--text-dim); margin-top: 22px; }
+  .gemma .desc { font-size: 32px; color: var(--text-dim); line-height: 1.4; margin-top: 26px; }
+  .gemma .quote { font-size: 32px; color: var(--text-dim); line-height: 1.4; margin-top: 26px; }
+  .gemma .listen { display: inline-flex; align-items: center; gap: 14px; margin-top: 34px;
+                   padding: 22px 40px; border-radius: 999px; font-size: 32px;
+                   background: rgba(255,255,255,.14); border: 1px solid var(--glass-stroke); }
+
+  /* Deterministic, seekable animations only (CSS keyframes). */
+  @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.06); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(24px); }
+                    to { opacity: 1; transform: none; } }
+  @keyframes breathe { 0%, 100% { opacity: .55; transform: scale(.97); }
+                       50% { opacity: 1; transform: scale(1.03); } }
+  @keyframes flash { 0% { opacity: 0; } 4% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes glowin { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pulse { 0%, 100% { transform: scaleY(.85); } 50% { transform: scaleY(1); } }
+  @keyframes dash { from { stroke-dashoffset: 900; } to { stroke-dashoffset: 0; } }
+  .rise { animation: rise .45s ease-out both; }
+</style>
+</head>
+<body>
+<div id="stage" data-composition-id="encore-short" data-start="0" data-duration="60"
+     data-no-timeline data-width="1080" data-height="1920">
+
+  <!-- Scène 1 — Le problème (0–6s) -->
+  <section id="scene-1" class="scene clip" data-start="0" data-duration="6" data-track-index="0">
+    <div class="party-bg" style="animation: kenburns 6s linear both;"></div>
+    <div style="width:340px;height:680px;border-radius:48px;background:#000;
+                border:2px solid rgba(255,255,255,.25); margin-bottom:90px;
+                box-shadow:0 0 140px rgba(255,255,255,.5);
+                animation: rise 1s ease-out both;">
+      <div style="margin:48% auto 0; width:70%; text-align:center; font-size:34px;
+                  color:var(--text-dim);">recherche&hellip;</div>
+    </div>
+    <h1 class="punchline rise" style="animation-delay:1.4s;">
+      Sortir son tel,<br/>c&rsquo;est tuer le moment.</h1>
+  </section>
+
+  <!-- Scène 2 — Reveal marque (6–13s) -->
+  <section id="scene-2" class="scene clip" data-start="6" data-duration="7" data-track-index="0">
+    <div class="brand-bg"></div>
+    <svg width="400" height="380" viewBox="0 0 120 110" fill="none"
+         style="animation: breathe 1.94s ease-in-out infinite;">
+      <path d="M60 100 C20 72 6 50 6 32 C6 16 18 6 32 6 C44 6 54 14 60 24
+               C66 14 76 6 88 6 C102 6 114 16 114 32 C114 50 100 72 60 100 Z"
+            stroke="url(#g)" stroke-width="7" stroke-linejoin="round"/>
+      <polyline points="18,52 42,52 50,30 60,72 68,44 74,52 102,52"
+                stroke="url(#g)" stroke-width="6" stroke-linecap="round"
+                stroke-linejoin="round" stroke-dasharray="900"
+                style="animation: dash 2.4s ease-out both .4s;"/>
+      <defs><linearGradient id="g" x1="0" y1="0" x2="120" y2="110">
+        <stop stop-color="#F9A8D4"/><stop offset=".55" stop-color="#E0699B"/>
+        <stop offset="1" stop-color="#FBCFA4"/></linearGradient></defs>
+    </svg>
+    <div class="rise brand-text" style="animation-delay:.8s; font-size:120px; font-weight:800;
+                margin-top:50px;">Encore</div>
+    <div class="label rise" style="animation-delay:1.2s; color:var(--brand-2);
+                margin-top:26px; font-size:34px;">Feel the beat</div>
+    <p class="punchline rise" style="animation-delay:1.8s; font-size:58px; margin-top:80px;">
+      Le pendentif qui &eacute;coute pour toi.</p>
+  </section>
+
+  <!-- Scène 3 — La setlist se remplit (13–22s) : réplique du recap "One More Time" -->
+  <section id="scene-3" class="scene clip" data-start="13" data-duration="9" data-track-index="0"
+           style="justify-content:flex-start; padding-top:150px;">
+    <div class="party-bg"></div>
+    <div class="app">
+      <div class="brand-label">ENCORE</div>
+      <h2>One More Time</h2>
+      <div class="subtitle">DJ Set &middot; 1 h 24 min &middot; Paris &middot; 24 Jul 2026</div>
+
+      <div class="session glass rise" style="animation-delay:.3s;">
+        <div class="head"><span class="label">&#x1D11E;&nbsp; Session live</span>
+          <span style="color:var(--accent); font-size:34px;">((&middot;))</span></div>
+        <div class="wf">
+          <i style="height:18%"></i><i style="height:30%"></i><i style="height:46%"></i>
+          <i style="height:64%"></i><i style="height:78%"></i><i style="height:88%"></i>
+          <i style="height:70%"></i><i style="height:52%"></i><i style="height:38%"></i>
+          <i style="height:26%"></i><i style="height:22%"></i><i style="height:34%"></i>
+          <i style="height:52%"></i><i style="height:72%"></i><i style="height:92%"></i>
+          <i style="height:96%"></i><i style="height:80%"></i><i style="height:62%"></i>
+          <i style="height:44%"></i><i style="height:30%"></i><i style="height:22%"></i>
+        </div>
+        <div class="stats">
+          <div><b>12</b><div class="label">Tracks</div></div>
+          <div><b>1h24</b><div class="label">Dur&eacute;e</div></div>
+          <div><b>125</b><div class="label">Avg BPM</div></div>
+        </div>
+      </div>
+
+      <div class="setlist-head"><span class="h">La setlist</span>
+        <span style="font-size:30px;color:var(--text-dim);">live</span></div>
+      <div class="row rise" style="animation-delay:1.6s;"><div class="ts">00:00</div>
+        <div class="dot"></div><div class="track glass">
+        <div class="title">One More Time</div><div class="artist">Daft Punk</div>
+        <div class="meta">123 BPM &middot; 5:20</div></div></div>
+      <div class="row rise" style="animation-delay:3.2s;"><div class="ts">04:12</div>
+        <div class="dot"></div><div class="track glass">
+        <div class="title">Music Sounds Better With You</div><div class="artist">Stardust</div>
+        <div class="meta">122 BPM &middot; 7:03</div></div></div>
+      <div class="row rise" style="animation-delay:4.8s;"><div class="ts">08:47</div>
+        <div class="dot"></div><div class="track glass">
+        <div class="title">Lady (Hear Me Tonight)</div><div class="artist">Modjo</div>
+        <div class="meta">126 BPM &middot; 5:00</div></div></div>
+    </div>
+    <p class="punchline rise" style="animation-delay:6s; font-size:58px; margin-top:56px;">
+      Chaque track. Horodat&eacute;e. Automatiquement.</p>
+  </section>
+
+  <!-- Scène 4 — Le duel (22–31s) -->
+  <section id="scene-4" class="scene clip" data-start="22" data-duration="9" data-track-index="0">
+    <div class="glass rise" style="padding:56px 66px; width:840px;">
+      <div class="label">Shazam</div>
+      <p style="font-size:50px; color:var(--fail-red); margin-top:22px;">Aucun r&eacute;sultat</p>
+    </div>
+    <div class="glass rise" style="animation-delay:1.2s; padding:56px 66px; width:840px;
+                margin-top:44px; border-color:var(--accent);">
+      <div class="label" style="color:var(--accent);">Encore &middot; hors ligne</div>
+      <p style="font-size:50px; font-weight:600; margin-top:22px;">Bootleg identifi&eacute;</p>
+    </div>
+    <p class="punchline rise" style="animation-delay:2s; font-size:58px; margin-top:76px;">
+      Transitions. Bootlegs. Sans r&eacute;seau.<br/>Encore ne l&acirc;che rien.</p>
+  </section>
+
+  <!-- Scène 5 — On-device (31–38s) -->
+  <section id="scene-5" class="scene clip" data-start="31" data-duration="7" data-track-index="0">
+    <div class="party-bg"></div>
+    <div class="label rise" style="font-size:40px;">&#9992;&nbsp; Mode avion</div>
+    <h1 class="punchline rise" style="animation-delay:.5s; margin-top:56px;">
+      100&nbsp;% sur l&rsquo;iPhone.<br/>Rien ne sort de la salle.</h1>
+  </section>
+
+  <!-- Scène 6 — Le drop → pin (38–45s) : carte épinglée, halo arc-en-ciel -->
+  <section id="scene-6" class="scene clip" data-start="38" data-duration="7" data-track-index="0">
+    <div class="party-bg"></div>
+    <div class="app" style="padding:0 40px;">
+      <div class="row"><div class="ts">04:12</div><div class="dot"></div>
+        <div class="track glass pinned" style="animation: glowin .5s ease-out both .15s;">
+          <div class="title">Music Sounds Better With You</div>
+          <div class="artist">Stardust</div>
+          <div class="meta">122 BPM &middot; 7:03</div>
+        </div></div>
+    </div>
+    <p class="punchline rise" style="animation-delay:1s; margin-top:70px;">
+      Tu adores&nbsp;? Tape le pendentif.<br/>&Eacute;pingl&eacute;e.</p>
+    <div style="position:absolute; inset:0; background:#fff;
+                animation: flash 1.2s linear both;"></div>
+  </section>
+
+  <!-- Scène 7 — Titre inconnu → Gemma (45–52s) : réplique de la vraie carte -->
+  <section id="scene-7" class="scene clip" data-start="45" data-duration="7" data-track-index="0">
+    <div class="party-bg"></div>
+    <div class="app" style="padding:0 40px;">
+      <div class="row"><div class="ts">16:45</div><div class="dot"></div>
+        <div class="track glass gemma rise">
+          <div class="title">Titre inconnu</div>
+          <div class="genre">Afrobeats</div>
+          <div class="bpm">188 BPM</div>
+          <div class="desc rise" style="animation-delay:.7s;">A club recording capturing
+            background crowd chatter in French alongside an energetic Afrobeats track
+            playing with prom&hellip;</div>
+          <div class="quote rise" style="animation-delay:1.3s;">&laquo;&nbsp;I don't know why
+            they did it again look at the score&nbsp;&raquo;</div>
+          <div class="listen rise" style="animation-delay:1.9s;">&#9654;&nbsp; &Eacute;couter
+            l'extrait</div>
+        </div></div>
+    </div>
+    <p class="punchline rise" style="animation-delay:2.6s; font-size:54px; margin-top:60px;">
+      Titre inconnu&nbsp;? Gemma &eacute;coute, d&eacute;crit,<br/>garde un extrait.
+      Retrouvable demain.</p>
+  </section>
+
+  <!-- Scène 8 — Le lendemain : recap + playlist (52–56.5s) -->
+  <section id="scene-8" class="scene clip" data-start="52" data-duration="4.5" data-track-index="0">
+    <div class="party-bg"></div>
+    <div class="app" style="padding:0 40px;">
+      <div class="session glass rise">
+        <div class="head"><span class="label">&#x1D11E;&nbsp; Session live</span></div>
+        <div class="stats" style="margin-top:36px;">
+          <div><b>12</b><div class="label">Tracks</div></div>
+          <div><b>1h24</b><div class="label">Dur&eacute;e</div></div>
+          <div><b>125</b><div class="label">Avg BPM</div></div>
+        </div>
+      </div>
+      <div class="pill glass rise" style="animation-delay:.7s; margin-top:40px;">
+        &#10024;&nbsp; G&eacute;n&eacute;rer une playlist</div>
+    </div>
+    <p class="punchline rise" style="animation-delay:1.4s; font-size:60px; margin-top:70px;">
+      Ta nuit, pr&ecirc;te &agrave; &ecirc;tre rev&eacute;cue.</p>
+  </section>
+
+  <!-- Scène 9 — End card marque (56.5–60s) -->
+  <section id="scene-9" class="scene clip" data-start="56.5" data-duration="3.5" data-track-index="0">
+    <div class="brand-bg"></div>
+    <svg width="200" height="188" viewBox="0 0 120 110" fill="none" class="rise">
+      <path d="M60 100 C20 72 6 50 6 32 C6 16 18 6 32 6 C44 6 54 14 60 24
+               C66 14 76 6 88 6 C102 6 114 16 114 32 C114 50 100 72 60 100 Z"
+            stroke="url(#g2)" stroke-width="7" stroke-linejoin="round"/>
+      <polyline points="18,52 42,52 50,30 60,72 68,44 74,52 102,52"
+                stroke="url(#g2)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs><linearGradient id="g2" x1="0" y1="0" x2="120" y2="110">
+        <stop stop-color="#F9A8D4"/><stop offset=".55" stop-color="#E0699B"/>
+        <stop offset="1" stop-color="#FBCFA4"/></linearGradient></defs>
+    </svg>
+    <p class="punchline rise" style="animation-delay:.5s; font-size:64px; margin-top:70px;">
+      Shazam te donne un titre.<br/>
+      <span class="brand-text">Encore te rend ta nuit.</span></p>
+  </section>
+
+  <!-- Bed musical : make_bed.py — 124 BPM, drop à 38s = flash de la scène 6 -->
+  <audio id="bed" data-start="0" data-duration="60" data-track-index="1" src="assets/bed.wav"></audio>
+</div>
+</body>
+</html>
