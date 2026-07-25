@@ -27,8 +27,16 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
     /// 0.5 s chunks of music heard since the last confirmed match.
     private var musicChunksUnmatched = 0
     private var unknownOpen = false
-    /// ~20 s of unmatched music before we journal an unknown track.
+    /// ~20 s of unmatched music before we journal an unknown track; while an
+    /// unknown is already open, ~45 s more of unmatched music opens the next
+    /// one (chained unknown tracks in a set).
     private let unknownAfterChunks = 40
+    private let unknownRearmChunks = 90
+
+    /// Rolling 30 s of audio + frozen clips of the unknowns (wav, ShazamKit
+    /// signature, DSP BPM) — the payload for the Gemma ID card + SerpAPI.
+    private let recorder = UnknownClipRecorder()
+    @Published var unknownClips: [UnknownClipRecorder.Clip] = []
 
     func attach(catalog: SHCustomCatalog, format: AVAudioFormat) {
         let s = SHSession(catalog: catalog)
@@ -40,18 +48,28 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
     /// Called on the source's audio queue with 0.5 s @ 16 kHz mono buffers.
     func ingest(_ buffer: AVAudioPCMBuffer, rms: Float) {
         journal.appendEnergy(Double(rms) * 3)
+        recorder.push(buffer)
         detector.analyze(buffer)
         let music = detector.isMusic
         DispatchQueue.main.async { self.isMusic = music }
         session?.matchStreamingBuffer(buffer, at: nil)
 
+        // Music-gated only: conversations and noise never advance this counter.
         if music {
             musicChunksUnmatched += 1
-            if musicChunksUnmatched >= unknownAfterChunks && !unknownOpen {
+            let threshold = unknownOpen ? unknownRearmChunks : unknownAfterChunks
+            if musicChunksUnmatched >= threshold {
+                musicChunksUnmatched = 0
                 unknownOpen = true
                 journal.append(.track_match, trackID: nil, source: .local_catalog,
                                note: "unknown")
                 DispatchQueue.main.async { self.currentTrack = nil }
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    guard let self, let clip = self.recorder.freezeClip() else { return }
+                    DispatchQueue.main.async { self.unknownClips.append(clip) }
+                    // TODO(gate 3): hand clip.wavURL to LlamaRunner (ID card,
+                    // bpm injected from clip.bpm) then to SerpAPIClient.
+                }
             }
         }
     }
