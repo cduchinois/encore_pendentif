@@ -36,6 +36,10 @@ static const int PIN_VBAT  = A2;                   // GPIO3/D2 — 2x220k divide
 
 // ---------- gestures ----------
 #define TOUCH_DEBUG 0                              // 1 = print touch readings every 500 ms
+#define PRIVACY_GESTURE 0                          // 0 = long press disabled: grabbing the
+                                                   // pendant reads as a long press and kept
+                                                   // muting the capture. Re-enable (=1) only
+                                                   // if the privacy gesture returns to the demo.
 static const uint32_t TAP_MAX_MS    = 350;
 static const uint32_t DOUBLE_TAP_MS = 400;
 static const uint32_t LONG_PRESS_MS = 1200;
@@ -178,10 +182,12 @@ void pollTouch() {
   if (pressed && !down) { down = true; longFired = false; downAt = now; }
 
   if (pressed && down && !longFired && now - downAt >= LONG_PRESS_MS) {
-    longFired = true;
+    longFired = true;                              // long grab must never count as a tap
+#if PRIVACY_GESTURE
     if (privacyMode) { privacyMode = false; sendEvent(EV_PRIVACY_OFF); }
     else { sendEvent(EV_PRIVACY_ON); privacyMode = true; }
     Serial.printf("privacy %s\n", privacyMode ? "ON" : "OFF");
+#endif
   }
 
   if (!pressed && down) {
