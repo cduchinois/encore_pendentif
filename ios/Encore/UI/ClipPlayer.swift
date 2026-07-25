@@ -1,13 +1,18 @@
 //  ClipPlayer.swift
 //  Encore
 //
-//  Plays back a captured unknown-track excerpt from a setlist card. One clip
-//  at a time; .playAndRecord keeps the mic path alive if Phone is listening
-//  (heads-up: the mic will hear the excerpt — pause Listen while replaying).
+//  Plays back a captured unknown-track excerpt from a setlist card.
+//  Playback needs the .playback session category — incompatible with the
+//  Phone mic capture, so we broadcast .encoreClipWillPlay and the stage
+//  stops the mic first (also kills the replay->mic feedback loop).
 
 import SwiftUI
 import AVFoundation
 import Combine
+
+extension Notification.Name {
+    static let encoreClipWillPlay = Notification.Name("encore.clipWillPlay")
+}
 
 final class ClipPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     static let shared = ClipPlayer()
@@ -18,14 +23,27 @@ final class ClipPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func toggle(_ url: URL) {
         if playingURL == url { stop(); return }
         stop()
+        // Synchronous on the main thread: the stage's mic capture stops
+        // before we reconfigure the session.
+        NotificationCenter.default.post(name: .encoreClipWillPlay, object: nil)
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, options: [.defaultToSpeaker])
-        try? session.setActive(true)
-        guard let p = try? AVAudioPlayer(contentsOf: url) else { return }
-        p.delegate = self
-        player = p
-        p.play()
-        playingURL = url
+        do {
+            try session.setCategory(.playback)
+            try session.setActive(true)
+        } catch {
+            print("ClipPlayer session error: \(error)")
+        }
+        do {
+            let p = try AVAudioPlayer(contentsOf: url)
+            p.delegate = self
+            p.volume = 1
+            player = p
+            print("ClipPlayer: playing \(url.lastPathComponent), \(String(format: "%.1f", p.duration))s")
+            p.play()
+            playingURL = url
+        } catch {
+            print("ClipPlayer failed to open \(url.lastPathComponent): \(error)")
+        }
     }
 
     func stop() {

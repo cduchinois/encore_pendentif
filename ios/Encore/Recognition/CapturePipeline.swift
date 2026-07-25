@@ -89,8 +89,9 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
                 journal.append(.track_match, trackID: nil, source: .local_catalog,
                                note: "unknown")
                 DispatchQueue.main.async { self.currentTrack = nil }
+                let samples = recorder.snapshot()   // race-free: same queue as push()
                 DispatchQueue.global(qos: .utility).async { [weak self] in
-                    guard let self, let clip = self.recorder.freezeClip() else { return }
+                    guard let self, let clip = self.recorder.freezeClip(from: samples) else { return }
                     let tsStart = max(0, self.journal.msSinceStart - Int(clip.duration * 1000))
                     DispatchQueue.main.async { self.unknownClips.append(clip) }
                     self.onUnknownClip?(clip, tsStart)

@@ -63,6 +63,13 @@ final class RecognitionStage: ObservableObject {
         receiver.onAudioFrame = { [weak self] pcm in self?.ingestPendant(pcm) }
         receiver.onEvent = { [weak self] ev in self?.handlePendantEvent(ev) }
         receiver.start()
+
+        // Clip replay needs the .playback session: release the mic first
+        // (also prevents the mic from hearing the excerpt it just captured).
+        NotificationCenter.default.addObserver(forName: .encoreClipWillPlay,
+                                               object: nil, queue: .main) { [weak self] _ in
+            self?.stopMic()
+        }
     }
 
     // MARK: Pendant source (UDP receive queue)

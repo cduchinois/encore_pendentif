@@ -43,11 +43,22 @@ final class UnknownClipRecorder {
         if ring.count > capacityChunks { ring.removeFirst(ring.count - capacityChunks) }
     }
 
-    /// Freeze the current ring into wav + signature + bpm. Call off the audio
-    /// queue; returns nil if the ring is (nearly) empty.
-    func freezeClip() -> Clip? {
-        let samples = ring.flatMap { $0 }
+    /// Snapshot the ring — MUST be called on the same queue as push()
+    /// (the source's audio queue) so the copy is race-free.
+    func snapshot() -> [Float] { ring.flatMap { $0 } }
+
+    /// Freeze a snapshot into wav + signature + bpm. Any queue; returns nil
+    /// if the snapshot is (nearly) empty.
+    func freezeClip(from samples: [Float]) -> Clip? {
         guard samples.count > Int(sampleRate) * 5 else { return nil }   // < 5 s = not worth it
+
+        // Recording diagnosis: a silent capture is a capture bug, loud and clear.
+        var peak: Float = 0; var acc: Float = 0
+        for s in samples { peak = max(peak, abs(s)); acc += s * s }
+        let rms = (acc / Float(samples.count)).squareRoot()
+        print(String(format: "UnknownClip: freezing %.1fs, peak=%.3f rms=%.3f%@",
+                     Double(samples.count) / sampleRate, peak, rms,
+                     peak < 0.01 ? "  ⚠️ CLIP QUASI SILENCIEUX" : ""))
 
         let stamp = Int(Date().timeIntervalSince1970)
         let wavURL = Self.dir.appendingPathComponent("unknown_\(stamp).wav")
