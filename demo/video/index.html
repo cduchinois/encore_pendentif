@@ -5,6 +5,7 @@
 <title>Encore — 60s short</title>
 <style>
   :root {
+    /* In-app palette (from the iOS screenshots) */
     --bg: #0A0F08;
     --room-green: #5A7A1E;
     --lime: #B6E354;
@@ -15,6 +16,11 @@
     --text-dim: rgba(255, 255, 255, 0.55);
     --privacy: #FF6B3D;
     --fail-red: #FF453A;
+    /* Brand palette (logo redesign — "Feel the beat") */
+    --brand-bg: #1C1626;
+    --brand-1: #F9A8D4;
+    --brand-2: #E0699B;
+    --brand-3: #FBCFA4;
   }
   * { margin: 0; box-sizing: border-box; }
   #stage {
@@ -36,16 +42,42 @@
       radial-gradient(60% 40% at 50% 20%, rgba(182,227,84,.35), transparent 70%),
       radial-gradient(80% 60% at 50% 80%, var(--room-green), transparent 75%),
       var(--bg); }
-  .party-bg img { width: 100%; height: 100%; object-fit: cover; opacity: .8; }
-  .screenshot { width: 780px; border-radius: 48px; border: 1px solid var(--glass-stroke);
-                box-shadow: 0 40px 120px rgba(0,0,0,.6); }
+  .brand-bg { position: absolute; inset: 0; z-index: -1; background:
+      radial-gradient(70% 50% at 50% 30%, rgba(224,105,155,.25), transparent 70%),
+      var(--brand-bg); }
+  .brand-text { background: linear-gradient(100deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3));
+                -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* --- Recreated app UI (no screenshots needed; matches the iOS app) --- */
+  .phone { width: 720px; border-radius: 56px; border: 1px solid var(--glass-stroke);
+           background: linear-gradient(180deg, rgba(10,15,8,.92), rgba(20,28,12,.92)),
+                       radial-gradient(80% 40% at 50% 0%, rgba(182,227,84,.25), transparent);
+           box-shadow: 0 40px 120px rgba(0,0,0,.6); padding: 56px 44px; overflow: hidden; }
+  .row { display: flex; align-items: flex-start; gap: 28px; margin-bottom: 30px; }
+  .row .ts { width: 110px; font-size: 30px; color: var(--text-dim); padding-top: 26px;
+             text-align: right; }
+  .row .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--accent);
+              margin-top: 34px; box-shadow: 0 0 16px var(--accent); flex: none; }
+  .track { flex: 1; padding: 26px 34px; }
+  .track .title { font-size: 40px; font-weight: 600; }
+  .track .artist { font-size: 32px; color: var(--text-dim); margin-top: 6px; }
+  .wave { display: flex; align-items: center; gap: 7px; height: 90px; }
+  .wave i { width: 6px; border-radius: 3px; background: rgba(255,255,255,.8);
+            animation: bar 1.94s ease-in-out infinite; }
+  .stats { display: flex; justify-content: space-around; margin-top: 44px; }
+  .stats b { font-size: 64px; font-weight: 700; font-variant-numeric: tabular-nums;
+             display: block; text-align: center; }
+  .stats span { display: block; text-align: center; margin-top: 8px; }
 
   /* Deterministic, seekable animations only (CSS keyframes). */
   @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.06); } }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); }
                     to { opacity: 1; transform: none; } }
-  @keyframes breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+  @keyframes breathe { 0%, 100% { opacity: .55; transform: scale(.97); }
+                       50% { opacity: 1; transform: scale(1.03); } }
   @keyframes flash { 0% { opacity: 0; } 4% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes bar { 0%, 100% { height: 22%; } 50% { height: 95%; } }
+  @keyframes dash { from { stroke-dashoffset: 900; } to { stroke-dashoffset: 0; } }
   .rise { animation: rise .4s ease-out both; }
 </style>
 </head>
@@ -55,29 +87,62 @@
 
   <!-- Scene 1 — The problem (0–6s) -->
   <section class="scene clip" data-start="0" data-duration="6" data-track-index="0">
-    <div class="party-bg" style="animation: kenburns 6s linear both;">
-      <img src="assets/party_bg.jpg" alt="" onerror="this.remove()" />
+    <div class="party-bg" style="animation: kenburns 6s linear both;"></div>
+    <div style="width:340px;height:680px;border-radius:48px;background:#000;
+                border:2px solid rgba(255,255,255,.25); margin-bottom:90px;
+                box-shadow:0 0 140px rgba(255,255,255,.5);
+                animation: rise 1s ease-out both;">
+      <div style="margin:48% auto 0; width:70%; text-align:center; font-size:34px;
+                  color:var(--text-dim);">listening&hellip;</div>
     </div>
-    <h1 class="punchline rise">Pulling out your phone kills&nbsp;the&nbsp;moment.</h1>
+    <h1 class="punchline rise" style="animation-delay:1.4s;">
+      Pulling out your phone kills&nbsp;the&nbsp;moment.</h1>
   </section>
 
-  <!-- Scene 2 — The reveal (6–13s) -->
+  <!-- Scene 2 — The reveal, brand look (6–13s) -->
   <section class="scene clip" data-start="6" data-duration="7" data-track-index="0">
-    <img src="assets/pendant_silhouette.png" alt="" onerror="this.remove()"
-         style="width:520px; margin-bottom:80px;" />
-    <div style="width:160px;height:160px;border-radius:50%;margin-bottom:60px;
-                background: radial-gradient(circle, var(--accent), transparent 70%);
-                animation: breathe 1.94s ease-in-out infinite;"></div>
-    <div class="label rise" style="animation-delay:.6s; font-size:48px;">E N C O R E</div>
-    <p class="punchline rise" style="animation-delay:1s; font-size:64px; margin-top:60px;">
+    <div class="brand-bg"></div>
+    <svg width="420" height="400" viewBox="0 0 120 110" fill="none"
+         style="animation: breathe 1.94s ease-in-out infinite;">
+      <path d="M60 100 C20 72 6 50 6 32 C6 16 18 6 32 6 C44 6 54 14 60 24
+               C66 14 76 6 88 6 C102 6 114 16 114 32 C114 50 100 72 60 100 Z"
+            stroke="url(#g)" stroke-width="7" stroke-linejoin="round"/>
+      <polyline points="18,52 42,52 50,30 60,72 68,44 74,52 102,52"
+                stroke="url(#g)" stroke-width="6" stroke-linecap="round"
+                stroke-linejoin="round" stroke-dasharray="900"
+                style="animation: dash 2.4s ease-out both .4s;"/>
+      <defs><linearGradient id="g" x1="0" y1="0" x2="120" y2="110">
+        <stop stop-color="#F9A8D4"/><stop offset=".55" stop-color="#E0699B"/>
+        <stop offset="1" stop-color="#FBCFA4"/></linearGradient></defs>
+    </svg>
+    <div class="rise brand-text" style="animation-delay:.8s; font-size:120px; font-weight:800;
+                margin-top:50px; letter-spacing:.01em;">Encore</div>
+    <div class="label rise" style="animation-delay:1.2s; color:var(--brand-2);
+                margin-top:26px; font-size:34px;">Feel the beat</div>
+    <p class="punchline rise" style="animation-delay:1.8s; font-size:60px; margin-top:80px;">
       The pendant that listens for you.</p>
   </section>
 
-  <!-- Scene 3 — It just works (13–22s): timeline screenshot, cards landing live -->
+  <!-- Scene 3 — It just works (13–22s): live timeline, rebuilt in HTML -->
   <section class="scene clip" data-start="13" data-duration="9" data-track-index="0">
     <div class="party-bg"></div>
-    <img class="screenshot" src="assets/app_timeline.png" alt="Encore live setlist" />
-    <p class="punchline rise" style="animation-delay:.8s; font-size:64px; margin-top:70px;">
+    <div class="phone">
+      <div class="label" style="margin-bottom:36px;">La setlist &middot;
+        <span style="color:var(--accent);">live</span></div>
+      <div class="row rise" style="animation-delay:.4s;"><div class="ts">14:10</div>
+        <div class="dot"></div><div class="track glass">
+        <div class="title">Blue Velvet</div><div class="artist">Bobby Vinton</div></div></div>
+      <div class="row rise" style="animation-delay:1.6s;"><div class="ts">14:14</div>
+        <div class="dot"></div><div class="track glass">
+        <div class="title">Around the World</div><div class="artist">Daft Punk</div></div></div>
+      <div class="row rise" style="animation-delay:2.8s;"><div class="ts">14:19</div>
+        <div class="dot"></div><div class="track glass">
+        <div class="title">Voodoo Ray</div><div class="artist">A Guy Called Gerald</div></div></div>
+      <div class="row rise" style="animation-delay:4s;"><div class="ts">14:23</div>
+        <div class="dot"></div><div class="track glass">
+        <div class="title">Windowlicker</div><div class="artist">Aphex Twin</div></div></div>
+    </div>
+    <p class="punchline rise" style="animation-delay:1s; font-size:62px; margin-top:70px;">
       Every track. Timestamped. Automatically.</p>
   </section>
 
@@ -104,10 +169,31 @@
       100% on-device.<br/>No data leaves the room.</h1>
   </section>
 
-  <!-- Scene 6 — The drop / pin + privacy (38–45s) -->
+  <!-- Scene 6 — The drop / pin + privacy (38–45s): CAPTURE VIBE card, rebuilt -->
   <section class="scene clip" data-start="38" data-duration="7" data-track-index="0">
     <div class="party-bg"></div>
-    <img class="screenshot" src="assets/app_pendant.png" alt="Encore pendant screen" />
+    <div class="phone" style="width:820px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="label">Capture vibe</div>
+        <div style="font-size:40px; color:var(--privacy);">&#9995;</div>
+      </div>
+      <div class="wave" style="margin-top:44px;">
+        <i style="animation-delay:0s"></i><i style="animation-delay:-.12s"></i>
+        <i style="animation-delay:-.24s"></i><i style="animation-delay:-.36s"></i>
+        <i style="animation-delay:-.48s"></i><i style="animation-delay:-.6s"></i>
+        <i style="animation-delay:-.72s"></i><i style="animation-delay:-.84s"></i>
+        <i style="animation-delay:-.96s"></i><i style="animation-delay:-.6s"></i>
+        <i style="animation-delay:-.48s"></i><i style="animation-delay:-.36s"></i>
+        <i style="animation-delay:-.24s"></i><i style="animation-delay:-.12s"></i>
+        <i style="animation-delay:0s"></i><i style="animation-delay:-.24s"></i>
+        <i style="animation-delay:-.48s"></i><i style="animation-delay:-.72s"></i>
+      </div>
+      <div class="stats">
+        <div><b>12</b><span class="label">Tracks</span></div>
+        <div><b>50</b><span class="label">FPS</span></div>
+        <div><b>84%</b><span class="label">Battery</span></div>
+      </div>
+    </div>
     <p class="punchline rise" style="animation-delay:1s; font-size:60px; margin-top:70px;">
       Love it? Tap. Pinned.<br/>
       <span style="color:var(--privacy); font-size:44px;">Long press: private. Really off.</span></p>
@@ -128,22 +214,34 @@
       Unreleased? Gemma listens<br/>and describes it.</p>
   </section>
 
-  <!-- Scene 8 — The morning after + tagline (52–60s) -->
+  <!-- Scene 8 — The morning after + brand end card (52–60s) -->
   <section class="scene clip" data-start="52" data-duration="8" data-track-index="0">
-    <div class="glass rise" style="padding:56px 70px; width:820px;">
-      <div class="label">Your night</div>
-      <p style="font-size:48px; font-weight:600; margin-top:24px;">
+    <div class="brand-bg"></div>
+    <div class="glass rise" style="padding:48px 64px; width:820px; border-color:rgba(224,105,155,.4);
+                background:rgba(224,105,155,.10);">
+      <div class="label" style="color:var(--brand-1);">Your night</div>
+      <p style="font-size:46px; font-weight:600; margin-top:20px;">
         24 tracks &middot; 3 pins &middot; 1 unreleased</p>
+      <p style="font-size:38px; color:var(--text-dim); margin-top:14px;">
+        &#9835; Playlist ready — Encore, 25 Jul 2026</p>
     </div>
-    <div class="glass rise" style="animation-delay:.8s; padding:56px 70px; width:820px; margin-top:48px;">
-      <div class="label" style="color:var(--accent);">&#9835; Apple Music</div>
-      <p style="font-size:48px; font-weight:600; margin-top:24px;">Encore — 25 Jul 2026</p>
-    </div>
-    <p class="punchline rise" style="animation-delay:1.8s; font-size:64px; margin-top:90px;">
-      Shazam gives you a title.<br/>Encore gives you back your night.</p>
+    <svg width="220" height="205" viewBox="0 0 120 110" fill="none" class="rise"
+         style="animation-delay:1s; margin-top:80px;">
+      <path d="M60 100 C20 72 6 50 6 32 C6 16 18 6 32 6 C44 6 54 14 60 24
+               C66 14 76 6 88 6 C102 6 114 16 114 32 C114 50 100 72 60 100 Z"
+            stroke="url(#g2)" stroke-width="7" stroke-linejoin="round"/>
+      <polyline points="18,52 42,52 50,30 60,72 68,44 74,52 102,52"
+                stroke="url(#g2)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs><linearGradient id="g2" x1="0" y1="0" x2="120" y2="110">
+        <stop stop-color="#F9A8D4"/><stop offset=".55" stop-color="#E0699B"/>
+        <stop offset="1" stop-color="#FBCFA4"/></linearGradient></defs>
+    </svg>
+    <p class="punchline rise" style="animation-delay:1.8s; font-size:62px; margin-top:60px;">
+      Shazam gives you a title.<br/>
+      <span class="brand-text">Encore gives you back your night.</span></p>
   </section>
 
-  <!-- Music bed: drop at ~38s must land on scene 6's flash -->
+  <!-- Music bed: generated by make_bed.py — 124 BPM, drop at 38s = scene 6's flash -->
   <audio data-start="0" data-duration="60" data-track-index="1" src="assets/bed.wav"></audio>
 </div>
 </body>

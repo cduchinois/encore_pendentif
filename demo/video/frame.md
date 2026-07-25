@@ -11,18 +11,33 @@ look like it came out of the Encore iOS app.
 - **Safe areas**: keep text inside the central 1080 × 1550; top 180 px and bottom 190 px are
   covered by platform UI (username, caption, tab bar).
 
-## Reference: app screenshots
+## Reference: app screens (rebuilt in HTML)
 
-The single source of visual truth is the real app UI. Drop the two screenshots (from Jade's
-iPhone, 25 Jul 2026) into `assets/`:
+The visual truth is the real app UI, as seen on Jade's iPhone (25 Jul 2026). Since the
+composition is HTML anyway, the two screens are **recreated as HTML components** in
+`index.html` (class `.phone`) instead of compositing PNGs — pixel-crisp at any size, no
+asset files needed:
 
-| File | Screen | What it shows |
+| Component | Mirrors | What it shows |
 |---|---|---|
-| `assets/app_pendant.png` | **Pendant** tab | "CAPTURE VIBE" glass card over a live camera-green party backdrop: waveform bars, `0 TRACKS / 50 FPS / 100% BATTERY` stats row, "La setlist — live · 0 tracks", status line "25 Jul 2026 at 14:22 · privacy" with the orange hand glyph, pill tab bar (Pendant · Phone · Demo · Settings). |
-| `assets/app_timeline.png` | **Phone** tab | The live setlist timeline: left rail of timestamps (`14:10`, `14:11`…) with dot markers, one glass card per matched track (title + artist, e.g. *Blue Velvet — Bobby Vinton*), cards catching the green room light. |
+| Timeline (scene 3) | **Phone** tab | Live setlist: left rail of timestamps with green dot markers, one glass card per matched track (*Blue Velvet — Bobby Vinton*…), "La setlist · live" label. |
+| Capture Vibe (scene 6) | **Pendant** tab | "CAPTURE VIBE" glass card: waveform bars, `TRACKS / FPS / BATTERY` stats row, orange privacy hand. |
 
-Use them **as-is** (full-bleed `<img>` inside a device frame, or cropped card close-ups). Never
-redraw the app UI by hand — if a scene needs UI, it composites one of these screenshots.
+If real screenshots land in `assets/` later, they can replace the replicas 1:1 — but keep
+the replicas as the default (they animate, screenshots don't).
+
+## Brand layer ("Feel the beat")
+
+The logo redesign (heart outline + heartbeat line, pink-peach gradient on dark plum) is used
+for the bookends only — scene 2 (reveal) and scene 8 (end card). The logo is inline SVG in
+`index.html`. In-app scenes keep the green palette below; never mix the two in one scene.
+
+| Token | Value | Use |
+|---|---|---|
+| `--brand-bg` | `#1C1626` | Brand-scene background (dark plum) |
+| `--brand-1` | `#F9A8D4` | Gradient start (pink) |
+| `--brand-2` | `#E0699B` | Gradient mid (rose) — tagline text |
+| `--brand-3` | `#FBCFA4` | Gradient end (peach) |
 
 ## Color tokens
 
@@ -77,7 +92,10 @@ System stack, mirroring iOS: `-apple-system, "SF Pro Display", "Helvetica Neue",
 
 ## Audio
 
-- One continuous music bed (house/techno, build → drop at ~38 s to sync with the pin scene).
-  Place the file at `assets/bed.wav` (gitignored if heavy — see `data/` policy).
-- Whoosh/rise into the drop; the LED flash lands **on** the drop.
+- The music bed is **generated, not sourced**: `python3 make_bed.py` writes
+  `assets/bed.wav` (60 s house, 124 BPM, riser 31–38 s, drop at exactly 38 s = the LED
+  flash). Deterministic (fixed seed) — same file every run. hyperframes only muxes audio,
+  it does not compose it.
+- To swap in a real track later, just replace `assets/bed.wav` (keep the drop at ~38 s or
+  retime scene 6).
 - Optional French VO; on-screen punchlines carry the message without sound.

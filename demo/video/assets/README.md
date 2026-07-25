@@ -1,2 +1,2 @@
-Drop media here — required files listed in ../storyboard.md (asset checklist).
-Screenshots app_pendant.png / app_timeline.png come from Jade's iPhone.
+Generated media. bed.wav comes from ../make_bed.py (committed because the render needs it;
+5.3 MB, regenerable at any time).
