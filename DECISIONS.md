@@ -9,3 +9,4 @@
 - 2026-07-24 Flash via PlatformIO not raw ESP-IDF (same esptool + BOOT/RESET recovery, zero toolchain setup); connection via iPhone hotspot + UDP to fixed 172.20.10.1:7777 (no IP discovery, loss-tolerant), protocol v1 unchanged. WiFi creds in gitignored firmware/src/secrets.h.
 - 2026-07-24 Commit `ios/Encore.xcodeproj` (synchronized-folder format, no team id): clone → open → build must work for both of us on hackathon morning; overrides the earlier "no .xcodeproj in git" note.
 - 2026-07-24 Jade's PagePlaylist mockup (Liquid Glass, iOS 26) merged as the app's design-system reference: `DesignSystem/` tokens + background, demo data stays in `UI/PlaylistTrack.swift` until the journal wires in.
+- 2026-07-25 Selected for final pitch -> preorder landing page (landing/) at 42€, delivery 1 Oct 2026, checkout via Stripe Payment Link (placeholder until the real link is created in the Stripe dashboard).
