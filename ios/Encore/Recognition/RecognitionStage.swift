@@ -44,7 +44,13 @@ final class RecognitionStage: ObservableObject {
     // MARK: Pendant source (UDP receive queue)
 
     private func ingestPendant(_ pcm: [Int16]) {
-        guard !privacy, matcherReady else { return }
+        // Protocol invariant: a pendant in privacy sends HEARTBEAT only.
+        // Audio frames flowing = privacy is off — auto-clear a stale latch
+        // (e.g. PRIVACY_ON received before a reflash that disabled the gesture).
+        if privacy {
+            DispatchQueue.main.async { if self.privacy { self.privacy = false } }
+        }
+        guard matcherReady else { return }
         pendantPending.append(contentsOf: pcm)
         guard pendantPending.count >= chunkSamples else { return }
         let chunk = pendantPending; pendantPending.removeAll(keepingCapacity: true)

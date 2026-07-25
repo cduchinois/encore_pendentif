@@ -36,6 +36,8 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
     /// one (chained unknown tracks in a set).
     private let unknownAfterChunks = 40
     private let unknownRearmChunks = 90
+    /// Consecutive non-music chunks; ~6 (3 s) = track boundary.
+    private var nonMusicChunks = 0
 
     /// Rolling 30 s of audio + frozen clips of the unknowns (wav, ShazamKit
     /// signature, DSP BPM) — the payload for the Gemma ID card + SerpAPI.
@@ -57,6 +59,21 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
         let music = detector.isMusic
         DispatchQueue.main.async { self.isMusic = music }
         session?.matchStreamingBuffer(buffer, at: nil)
+
+        // A ~3 s break in the music (manual song switch, DJ hard cut) is a
+        // track boundary: close the open unknown so the next unknown song
+        // opens its own row after its own 20 s. Seamless blends between two
+        // unknown tracks still merge — known limitation until we match
+        // against our own unknown signatures.
+        if !music {
+            nonMusicChunks += 1
+            if nonMusicChunks >= 6 && unknownOpen {
+                unknownOpen = false
+                musicChunksUnmatched = 0
+            }
+        } else {
+            nonMusicChunks = 0
+        }
 
         // Music-gated only: conversations and noise never advance this counter.
         if music {
