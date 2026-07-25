@@ -1,14 +1,14 @@
-//  PagePlaylist.swift
+//  DemoPage.swift
 //  Encore
 //
-//  Standalone demo page — musical recap of a DJ set with a scrollable
+//  Standalone demo page (mock data) — musical recap of a DJ set with a scrollable
 //  timeline of identified tracks. Uses only the local design system
 //  (`Theme.Radius`, `Theme.Font`) and the native iOS 26 Liquid Glass API
 //  (`.glassEffect(.clear.interactive())`).
 
 import SwiftUI
 
-struct PagePlaylist: View {
+struct DemoPage: View {
 
     // MARK: Inputs
 
@@ -219,9 +219,13 @@ struct PagePlaylist: View {
 /// Vertical timeline: continuous rail + dots at each timestamp + track cards
 /// on the right. Rail is a single Rectangle drawn behind all rows (via
 /// ZStack) so it never breaks between rows.
-private struct SetlistTimeline: View {
+/// Internal (not private): PendantPage and PhonePage render the live journal
+/// with the exact same timeline.
+struct SetlistTimeline: View {
 
     let tracks: [PlaylistTrack]
+    /// When set, tapping a track card pins it (live pages). Nil on DemoPage.
+    var onPin: ((PlaylistTrack) -> Void)? = nil
 
     /// Horizontal rail position (from the timeline's leading edge).
     /// Timestamp column = 46pt, dot centered in the 20pt that follow.
@@ -245,7 +249,8 @@ private struct SetlistTimeline: View {
                     TimelineTrackRow(
                         track: track,
                         timestampColumnWidth: timestampColumnWidth,
-                        dotColumnWidth: dotColumnWidth
+                        dotColumnWidth: dotColumnWidth,
+                        onPin: onPin
                     )
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -259,6 +264,7 @@ private struct TimelineTrackRow: View {
     let track: PlaylistTrack
     let timestampColumnWidth: CGFloat
     let dotColumnWidth: CGFloat
+    var onPin: ((PlaylistTrack) -> Void)? = nil
 
     /// The dot only reflects `isPlaying`. The pinned state is rendered as an
     /// aurora outline on the card, not on the dot.
@@ -292,6 +298,7 @@ private struct TimelineTrackRow: View {
             // shift.
             trackCard
                 .padding(.leading, 10)
+                .onTapGesture { onPin?(track) }
         }
     }
 
@@ -314,6 +321,29 @@ private struct TimelineTrackRow: View {
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
                     .padding(.top, 2)
+            }
+
+            // Unknown-track enrichment (Gemma ID card): description, heard
+            // lyrics, and the captured excerpt.
+            if let detail = track.detail {
+                Text(detail)
+                    .font(Theme.Font.body(12))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+            }
+            if let lyrics = track.lyrics, !lyrics.isEmpty {
+                Text("« \(lyrics) »")
+                    .font(Theme.Font.body(12).italic())
+                    .foregroundStyle(.white.opacity(0.55))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
+            if let clipURL = track.clipURL {
+                PlayClipButton(url: clipURL)
+                    .padding(.top, 6)
             }
         }
         .padding(.horizontal, 14)
@@ -564,7 +594,7 @@ private struct PulsingDot: View {
 // MARK: - Preview container
 
 /// Forest backdrop container used for previews and demo full-screen covers.
-/// PagePlaylist itself stays transparent and inherits the parent's
+/// DemoPage itself stays transparent and inherits the parent's
 /// background — the container decides.
 struct PlaylistPreviewContainer<Content: View>: View {
     @ViewBuilder var content: Content
@@ -580,14 +610,14 @@ struct PlaylistPreviewContainer<Content: View>: View {
 
 // MARK: - Preview
 
-#Preview("PagePlaylist — forest backdrop") {
+#Preview("DemoPage — forest backdrop") {
     PlaylistPreviewContainer {
-        PagePlaylist(onClose: {}, onGenerate: {})
+        DemoPage(onClose: {}, onGenerate: {})
     }
 }
 
-#Preview("PagePlaylist — no close button") {
+#Preview("DemoPage — no close button") {
     PlaylistPreviewContainer {
-        PagePlaylist()
+        DemoPage()
     }
 }
