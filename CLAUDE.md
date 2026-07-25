@@ -26,7 +26,7 @@ Full PRD: `docs/PROPOSAL.md`. Day plan: `PLAN.md`. Demo: `demo/demo_script.md`.
 ## Module map
 
 - `firmware/` — PlatformIO, C++. Capture + stream + touch + LED. Owner: firmware-dev agent.
-- `ios/` — Swift app (create the Xcode project locally; see ios/README.md). Owner: ios-dev agent.
+- `ios/` — Swift app; `Encore.xcodeproj` is committed (synchronized folder, open and build; see ios/README.md). Owner: ios-dev agent.
 - `pipeline/` — Python. Catalog prep (fingerprints, enrichment), SerpAPI resolver, context compiler, benchmark. Owner: pipeline-dev agent.
 - `contracts/` — shared schemas and the pendant protocol. **Source of truth between modules.**
 - `data/` — gitignored payloads (catalog index, audio). Manifests and audit notes are committed.
