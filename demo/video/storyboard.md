@@ -1,5 +1,11 @@
 # Storyboard — Encore, 60 s vertical short
 
+> **V2** — le texte à l'écran vit désormais dans [`script.md`](script.md) (à corriger par Jade,
+> puis on resynchronise `index.html`). Scènes recalées sur la vraie UI de l'app :
+> scène 3 = recap "One More Time" (SESSION LIVE + setlist réelle), scène 6 = carte épinglée
+> avec halo arc-en-ciel, scène 7 = carte Gemma "Titre inconnu" complète (desc + « lyrics » +
+> Écouter l'extrait), scène 8 = recap + "Générer une playlist", scène 9 = end card marque.
+
 Compressed from `demo/demo_script.md` (7 beats) into 8 scenes / 60 s. Punchlines in English
 (matching the pitch), VO can be French. Design rules: `frame.md`. Composition: `index.html`.
 
