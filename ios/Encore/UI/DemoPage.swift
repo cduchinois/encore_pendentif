@@ -322,6 +322,29 @@ private struct TimelineTrackRow: View {
                     .lineLimit(1)
                     .padding(.top, 2)
             }
+
+            // Unknown-track enrichment (Gemma ID card): description, heard
+            // lyrics, and the captured excerpt.
+            if let detail = track.detail {
+                Text(detail)
+                    .font(Theme.Font.body(12))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+            }
+            if let lyrics = track.lyrics, !lyrics.isEmpty {
+                Text("« \(lyrics) »")
+                    .font(Theme.Font.body(12).italic())
+                    .foregroundStyle(.white.opacity(0.55))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
+            if let clipURL = track.clipURL {
+                PlayClipButton(url: clipURL)
+                    .padding(.top, 6)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

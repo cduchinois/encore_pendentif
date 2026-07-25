@@ -20,6 +20,10 @@ struct PlaylistTrack: Identifiable, Hashable {
     /// catalog.sqlite id for live rows (nil for demo data and unknown tracks);
     /// used by tap-to-pin.
     var catalogID: Int? = nil
+    /// Unknown-track enrichment from the Gemma ID card.
+    var detail: String? = nil          // one-sentence description
+    var lyrics: String? = nil          // heard lyrics snippet
+    var clipURL: URL? = nil            // captured excerpt, playable in the row
 }
 
 enum PlaylistDemoData {

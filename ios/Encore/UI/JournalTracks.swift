@@ -28,13 +28,24 @@ extension SessionStore {
         }
         return matches.enumerated().map { i, ev in
             let meta = ev.track_id.flatMap { CatalogStore.shared.track($0) }
-            // Unknown row: dress it with the first ID card issued after it.
+            // Unknown row: dress it with the first ID card issued after it —
+            // genre, BPM, description, heard lyrics, and the captured excerpt.
             var unknownArtist = "en attente d'identification"
             var unknownBPM: Int? = nil
+            var detail: String? = nil
+            var lyrics: String? = nil
+            var clipURL: URL? = nil
             if ev.track_id == nil,
                let card = idCards.first(where: { $0.ts >= ev.ts_ms })?.card {
                 unknownArtist = card.genre
                 unknownBPM = card.bpm.map { Int($0) }
+                detail = card.description
+                lyrics = card.lyrics_snippet
+                if let ref = card.clip_ref {
+                    let u = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                        .appendingPathComponent("unknown_clips").appendingPathComponent(ref)
+                    if FileManager.default.fileExists(atPath: u.path) { clipURL = u }
+                }
             }
             return PlaylistTrack(
                 index: i + 1,
@@ -45,7 +56,10 @@ extension SessionStore {
                 bpm: meta?.bpm.map { Int($0) } ?? unknownBPM,
                 isPinned: ev.track_id.map { pinnedIDs.contains($0) } ?? false,
                 isPlaying: i == matches.count - 1,
-                catalogID: ev.track_id
+                catalogID: ev.track_id,
+                detail: detail,
+                lyrics: lyrics,
+                clipURL: clipURL
             )
         }
     }
