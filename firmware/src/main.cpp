@@ -44,6 +44,7 @@ Adafruit_NeoPixel led(1, PIN_LED, NEO_GRB + NEO_KHZ800);
 WiFiUDP udp;
 uint16_t seq = 0;
 bool privacyMode = false;
+uint32_t sendOk = 0, sendFail = 0;                 // per-5s-window UDP send stats
 
 // ambiance state set by CMD_LED; flash overlays it briefly
 uint8_t ambMode = LED_OFF, ambR = 0, ambG = 0, ambB = 0;
@@ -79,7 +80,8 @@ void sendAudioFrame(int16_t* pcm) {
   memcpy(pkt + 1, &seq, 2); seq++;
   uint32_t ts = millis(); memcpy(pkt + 3, &ts, 4);
   memcpy(pkt + 7, pcm, FRAME_SAMPLES * 2);
-  udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt)); udp.endPacket();
+  udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt));
+  if (udp.endPacket()) sendOk++; else sendFail++;
 }
 
 void sendEvent(uint8_t code) {
@@ -257,6 +259,24 @@ void loop() {
 
   pollTouch();
   pollUdp();
-  if (millis() - lastHb >= 5000) { lastHb = millis(); sendHeartbeat(); }
+  if (millis() - lastHb >= 5000) {
+    lastHb = millis();
+    sendHeartbeat();
+    // Self-diagnosis: one status line per window beats catching the boot log.
+    Serial.printf("net: ip=%s -> %s:%u rssi=%d ok=%lu fail=%lu\n",
+                  WiFi.localIP().toString().c_str(), PHONE_IP, PORT,
+                  WiFi.RSSI(), (unsigned long)sendOk, (unsigned long)sendFail);
+    // 3 windows of 100% failure (ARP dead / stale association) -> reassociate.
+    static uint8_t badWindows = 0;
+    if (sendFail > 0 && sendOk == 0) {
+      if (++badWindows >= 3) {
+        badWindows = 0;
+        Serial.println("all sends failing — reassociating WiFi");
+        WiFi.disconnect();
+        connectWifi();
+      }
+    } else badWindows = 0;
+    sendOk = sendFail = 0;
+  }
   renderLed();
 }
