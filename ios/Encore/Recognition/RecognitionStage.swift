@@ -36,6 +36,30 @@ final class RecognitionStage: ObservableObject {
             self?.receiver.sendLED(.flashOnce, r: 80, g: 0, b: 255)
         }
 
+        // Unknown clip -> Gemma ID card -> journal (kind id_card). The backend
+        // is read from Settings at call time; .off drops silently.
+        let resolve: (CapturePipeline) -> (UnknownClipRecorder.Clip, Int) -> Void = { pipeline in
+            { clip, tsStart in
+                let s = AppSettings.shared
+                let runner = LlamaRunner(backend: s.gemmaBackend,
+                                         serverURL: URL(string: s.gemmaServerURL),
+                                         geminiKey: s.geminiKey)
+                guard runner.backend != .off else { return }
+                Task {
+                    do {
+                        let card = try await runner.idCard(forWav: clip.wavURL,
+                                                           bpm: clip.bpm, tsStartMs: tsStart)
+                        pipeline.journal.append(.id_card, source: .gemma, idCard: card)
+                        print("ID card [\(card.genre)] \(card.description)")
+                    } catch {
+                        print("ID card failed: \(error)")
+                    }
+                }
+            }
+        }
+        pendant.onUnknownClip = resolve(pendant)
+        phone.onUnknownClip = resolve(phone)
+
         receiver.onAudioFrame = { [weak self] pcm in self?.ingestPendant(pcm) }
         receiver.onEvent = { [weak self] ev in self?.handlePendantEvent(ev) }
         receiver.start()

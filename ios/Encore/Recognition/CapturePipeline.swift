@@ -18,6 +18,9 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
     let journal = SessionStore()
     /// Fired on a confirmed NEW track (used for the pendant LED flash).
     var onConfirmed: ((EncoreMatch) -> Void)?
+    /// Fired off-main with each frozen unknown clip + its ts_start_ms in the
+    /// session clock — the Gemma ID card + SerpAPI resolve entry point.
+    var onUnknownClip: ((UnknownClipRecorder.Clip, Int) -> Void)?
 
     private var session: SHSession?
     private let detector = MusicDetector()
@@ -88,9 +91,9 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
                 DispatchQueue.main.async { self.currentTrack = nil }
                 DispatchQueue.global(qos: .utility).async { [weak self] in
                     guard let self, let clip = self.recorder.freezeClip() else { return }
+                    let tsStart = max(0, self.journal.msSinceStart - Int(clip.duration * 1000))
                     DispatchQueue.main.async { self.unknownClips.append(clip) }
-                    // TODO(gate 3): hand clip.wavURL to LlamaRunner (ID card,
-                    // bpm injected from clip.bpm) then to SerpAPIClient.
+                    self.onUnknownClip?(clip, tsStart)
                 }
             }
         }

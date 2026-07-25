@@ -22,15 +22,27 @@ extension SessionStore {
             if let last = matches.last, last.track_id == ev.track_id { continue }
             matches.append(ev)
         }
+        let idCards: [(ts: Int, card: IDCard)] = events.compactMap { ev in
+            guard ev.kind == .id_card, let c = ev.id_card else { return nil }
+            return (ev.ts_ms, c)
+        }
         return matches.enumerated().map { i, ev in
             let meta = ev.track_id.flatMap { CatalogStore.shared.track($0) }
+            // Unknown row: dress it with the first ID card issued after it.
+            var unknownArtist = "en attente d'identification"
+            var unknownBPM: Int? = nil
+            if ev.track_id == nil,
+               let card = idCards.first(where: { $0.ts >= ev.ts_ms })?.card {
+                unknownArtist = card.genre
+                unknownBPM = card.bpm.map { Int($0) }
+            }
             return PlaylistTrack(
                 index: i + 1,
                 title: meta?.title ?? "Titre inconnu",
-                artist: meta?.artist ?? "en attente d'identification",
+                artist: meta?.artist ?? unknownArtist,
                 timestamp: clock(ev.ts_ms),
                 duration: nil,
-                bpm: meta?.bpm.map { Int($0) },
+                bpm: meta?.bpm.map { Int($0) } ?? unknownBPM,
                 isPinned: ev.track_id.map { pinnedIDs.contains($0) } ?? false,
                 isPlaying: i == matches.count - 1,
                 catalogID: ev.track_id

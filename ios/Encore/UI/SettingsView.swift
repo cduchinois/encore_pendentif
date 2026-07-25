@@ -21,6 +21,8 @@ struct SettingsView: View {
                         .padding(.bottom, 4)
 
                     backgroundCard
+
+                    gemmaCard
                 }
                 .padding(.horizontal, Theme.Space.screenH)
                 .padding(.top, Theme.Space.screenTop)
@@ -104,6 +106,56 @@ struct SettingsView: View {
                 }
                 .glassEffect(.clear.interactive(),
                              in: RoundedRectangle(cornerRadius: Theme.Radius.action, style: .continuous))
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 32))
+        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 32))
+    }
+
+    // MARK: Gemma card — backend for the unknown-track ID cards
+
+    private var gemmaCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                Text("GEMMA · ID CARDS")
+                    .font(Theme.Font.label(11, weight: .heavy))
+                    .tracking(1.4)
+                    .foregroundStyle(.white.opacity(0.85))
+                Spacer(minLength: 0)
+            }
+
+            Picker("Backend", selection: $settings.gemmaBackendRaw) {
+                Text("Off").tag(GemmaBackend.off.rawValue)
+                Text("Mac (llama-server)").tag(GemmaBackend.llamaServer.rawValue)
+                Text("Cloud (Gemini)").tag(GemmaBackend.geminiAPI.rawValue)
+            }
+            .pickerStyle(.segmented)
+
+            if settings.gemmaBackend == .llamaServer {
+                TextField("http://172.20.10.2:8080", text: $settings.gemmaServerURL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .font(Theme.Font.body(14))
+                    .padding(10)
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+                Text("Le Mac qui fait tourner llama-server, sur le même hotspot.")
+                    .font(Theme.Font.label(11))
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+            if settings.gemmaBackend == .geminiAPI {
+                SecureField("Clé API Gemini", text: $settings.geminiKey)
+                    .font(Theme.Font.body(14))
+                    .padding(10)
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+                Text("aistudio.google.com/apikey — stockée sur l'appareil uniquement.")
+                    .font(Theme.Font.label(11))
+                    .foregroundStyle(.white.opacity(0.55))
             }
         }
         .padding(24)

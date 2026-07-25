@@ -13,12 +13,29 @@ final class AppSettings: ObservableObject {
 
     @Published private(set) var customBackground: UIImage?
 
+    // MARK: Gemma ID-card backend (never in git — UserDefaults only)
+
+    @Published var gemmaBackendRaw: String {
+        didSet { UserDefaults.standard.set(gemmaBackendRaw, forKey: "gemma_backend") }
+    }
+    @Published var gemmaServerURL: String {
+        didSet { UserDefaults.standard.set(gemmaServerURL, forKey: "gemma_server_url") }
+    }
+    @Published var geminiKey: String {
+        didSet { UserDefaults.standard.set(geminiKey, forKey: "gemini_api_key") }
+    }
+    var gemmaBackend: GemmaBackend { GemmaBackend(rawValue: gemmaBackendRaw) ?? .off }
+
     private var fileURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("custom_background.jpg")
     }
 
     private init() {
+        let d = UserDefaults.standard
+        gemmaBackendRaw = d.string(forKey: "gemma_backend") ?? GemmaBackend.off.rawValue
+        gemmaServerURL = d.string(forKey: "gemma_server_url") ?? "http://172.20.10.2:8080"
+        geminiKey = d.string(forKey: "gemini_api_key") ?? ""
         if let data = try? Data(contentsOf: fileURL) {
             customBackground = UIImage(data: data)
         }
