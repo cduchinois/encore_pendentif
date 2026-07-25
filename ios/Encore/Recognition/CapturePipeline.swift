@@ -24,6 +24,10 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
 
     private var candidateID: Int? = nil
     private var candidateHits = 0
+    /// Synchronous mirror of the confirmed track, checked on the delegate
+    /// queue — currentTrack updates async on main, so guarding on it alone
+    /// lets rapid successive matches through (one journal row per match).
+    private var confirmedTrackID: Int? = nil
     /// 0.5 s chunks of music heard since the last confirmed match.
     private var musicChunksUnmatched = 0
     private var unknownOpen = false
@@ -61,6 +65,7 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
             if musicChunksUnmatched >= threshold {
                 musicChunksUnmatched = 0
                 unknownOpen = true
+                confirmedTrackID = nil      // the same song matching later = a new row
                 journal.append(.track_match, trackID: nil, source: .local_catalog,
                                note: "unknown")
                 DispatchQueue.main.async { self.currentTrack = nil }
@@ -91,9 +96,10 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
         musicChunksUnmatched = 0
         if m.trackID == candidateID { candidateHits += 1 }
         else { candidateID = m.trackID; candidateHits = 1 }
-        guard candidateHits >= 2, currentTrack?.id != m.trackID else { return }
+        guard candidateHits >= 2, confirmedTrackID != m.trackID else { return }
 
-        let wasPlaying = currentTrack != nil
+        let wasPlaying = confirmedTrackID != nil
+        confirmedTrackID = m.trackID
         unknownOpen = false
         journal.append(.track_match, trackID: m.trackID, source: .local_catalog)
         if wasPlaying { journal.append(.transition, trackID: m.trackID, source: .local_catalog) }

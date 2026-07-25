@@ -14,7 +14,14 @@ extension SessionStore {
     /// references the same track; playing = last row.
     var playlistTracks: [PlaylistTrack] {
         let pinnedIDs = Set(events.filter { $0.kind == .pin }.compactMap(\.track_id))
-        let matches = events.filter { $0.kind == .track_match }
+        // Collapse consecutive rows of the same track: one row per continuous
+        // play, however many times the matcher re-confirmed it. Unknown rows
+        // (track_id nil) collapse together the same way.
+        var matches: [JournalEvent] = []
+        for ev in events where ev.kind == .track_match {
+            if let last = matches.last, last.track_id == ev.track_id { continue }
+            matches.append(ev)
+        }
         return matches.enumerated().map { i, ev in
             let meta = ev.track_id.flatMap { CatalogStore.shared.track($0) }
             return PlaylistTrack(
