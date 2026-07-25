@@ -1,1 +1,18 @@
-# "Artist - Title" lines, ~50 tracks of the demo set. enrich_catalog.py --priority uses this.
+New Order - Blue Monday
+The Stone Roses - Fools Gold
+Happy Mondays - Wrote For Luck
+Primal Scream - Higher Than The Sun
+The Beloved - The Sun Rising
+The Orb - Little Fluffy Clouds
+The Beloved - Sweet Harmony
+The KLF - What Time Is Love? (Live At Trancentral)
+The Justified Ancients Of Mu Mu - It's Grim Up North
+Orbital - Remind
+Underworld - Spoonman
+The Chemical Brothers - Hey Boy Hey Girl (Extended)
+Drum Club - Follow The Sun
+Psychick Warriors Ov Gaia - Exit 23 (Drum Club Remix 1)
+LFO - LFO
+Plastikman - Consumed
+Paperclip People - Throw (Slam's RTM Remix)
+Spiral Tribe Sound System - Forward The Revolution
