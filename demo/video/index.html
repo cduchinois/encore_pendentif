@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Encore — 60s short</title>
+<style>
+  :root {
+    --bg: #0A0F08;
+    --room-green: #5A7A1E;
+    --lime: #B6E354;
+    --accent: #30D158;
+    --glass: rgba(120, 150, 80, 0.28);
+    --glass-stroke: rgba(255, 255, 255, 0.18);
+    --text: #FFFFFF;
+    --text-dim: rgba(255, 255, 255, 0.55);
+    --privacy: #FF6B3D;
+    --fail-red: #FF453A;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  #stage {
+    position: relative; overflow: hidden;
+    width: 1080px; height: 1920px;
+    background: var(--bg);
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+    color: var(--text);
+  }
+  .scene { position: absolute; inset: 0; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; padding: 120px 90px; }
+  .punchline { font-size: 84px; font-weight: 700; line-height: 1.05; text-align: center;
+               text-wrap: balance; }
+  .label { font-size: 28px; font-weight: 600; letter-spacing: 0.18em;
+           text-transform: uppercase; color: var(--text-dim); }
+  .glass { background: var(--glass); border: 1px solid var(--glass-stroke);
+           border-radius: 28px; backdrop-filter: blur(24px); }
+  .party-bg { position: absolute; inset: -60px; z-index: -1; background:
+      radial-gradient(60% 40% at 50% 20%, rgba(182,227,84,.35), transparent 70%),
+      radial-gradient(80% 60% at 50% 80%, var(--room-green), transparent 75%),
+      var(--bg); }
+  .party-bg img { width: 100%; height: 100%; object-fit: cover; opacity: .8; }
+  .screenshot { width: 780px; border-radius: 48px; border: 1px solid var(--glass-stroke);
+                box-shadow: 0 40px 120px rgba(0,0,0,.6); }
+
+  /* Deterministic, seekable animations only (CSS keyframes). */
+  @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.06); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(24px); }
+                    to { opacity: 1; transform: none; } }
+  @keyframes breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+  @keyframes flash { 0% { opacity: 0; } 4% { opacity: 1; } 100% { opacity: 0; } }
+  .rise { animation: rise .4s ease-out both; }
+</style>
+</head>
+<body>
+<div id="stage" data-composition-id="encore-short" data-start="0"
+     data-width="1080" data-height="1920">
+
+  <!-- Scene 1 — The problem (0–6s) -->
+  <section class="scene clip" data-start="0" data-duration="6" data-track-index="0">
+    <div class="party-bg" style="animation: kenburns 6s linear both;">
+      <img src="assets/party_bg.jpg" alt="" onerror="this.remove()" />
+    </div>
+    <h1 class="punchline rise">Pulling out your phone kills&nbsp;the&nbsp;moment.</h1>
+  </section>
+
+  <!-- Scene 2 — The reveal (6–13s) -->
+  <section class="scene clip" data-start="6" data-duration="7" data-track-index="0">
+    <img src="assets/pendant_silhouette.png" alt="" onerror="this.remove()"
+         style="width:520px; margin-bottom:80px;" />
+    <div style="width:160px;height:160px;border-radius:50%;margin-bottom:60px;
+                background: radial-gradient(circle, var(--accent), transparent 70%);
+                animation: breathe 1.94s ease-in-out infinite;"></div>
+    <div class="label rise" style="animation-delay:.6s; font-size:48px;">E N C O R E</div>
+    <p class="punchline rise" style="animation-delay:1s; font-size:64px; margin-top:60px;">
+      The pendant that listens for you.</p>
+  </section>
+
+  <!-- Scene 3 — It just works (13–22s): timeline screenshot, cards landing live -->
+  <section class="scene clip" data-start="13" data-duration="9" data-track-index="0">
+    <div class="party-bg"></div>
+    <img class="screenshot" src="assets/app_timeline.png" alt="Encore live setlist" />
+    <p class="punchline rise" style="animation-delay:.8s; font-size:64px; margin-top:70px;">
+      Every track. Timestamped. Automatically.</p>
+  </section>
+
+  <!-- Scene 4 — The duel (22–31s): Shazam fails, Encore matches offline -->
+  <section class="scene clip" data-start="22" data-duration="9" data-track-index="0">
+    <div class="glass rise" style="padding:60px 70px; width:820px;">
+      <div class="label">Other apps</div>
+      <p style="font-size:52px; color:var(--fail-red); margin-top:24px;">No result</p>
+    </div>
+    <div class="glass rise" style="animation-delay:1.2s; padding:60px 70px; width:820px;
+                margin-top:48px; border-color:var(--accent);">
+      <div class="label" style="color:var(--accent);">Encore &middot; offline</div>
+      <p style="font-size:52px; font-weight:600; margin-top:24px;">Rare bootleg — matched</p>
+    </div>
+    <p class="punchline rise" style="animation-delay:2s; font-size:60px; margin-top:80px;">
+      Transitions. Bootlegs. No network.<br/>Encore doesn&rsquo;t flinch.</p>
+  </section>
+
+  <!-- Scene 5 — On-device (31–38s) -->
+  <section class="scene clip" data-start="31" data-duration="7" data-track-index="0">
+    <div class="party-bg"></div>
+    <div class="label rise" style="font-size:40px;">&#9992; Airplane mode</div>
+    <h1 class="punchline rise" style="animation-delay:.5s; margin-top:60px;">
+      100% on-device.<br/>No data leaves the room.</h1>
+  </section>
+
+  <!-- Scene 6 — The drop / pin + privacy (38–45s) -->
+  <section class="scene clip" data-start="38" data-duration="7" data-track-index="0">
+    <div class="party-bg"></div>
+    <img class="screenshot" src="assets/app_pendant.png" alt="Encore pendant screen" />
+    <p class="punchline rise" style="animation-delay:1s; font-size:60px; margin-top:70px;">
+      Love it? Tap. Pinned.<br/>
+      <span style="color:var(--privacy); font-size:44px;">Long press: private. Really off.</span></p>
+    <div style="position:absolute; inset:0; background:#fff;
+                animation: flash 1.2s linear both;"></div>
+  </section>
+
+  <!-- Scene 7 — Gemma ID card (45–52s) -->
+  <section class="scene clip" data-start="45" data-duration="7" data-track-index="0">
+    <div class="glass" style="padding:70px; width:860px;">
+      <div class="label" style="color:var(--accent);">Gemma 4 &middot; on-device</div>
+      <p class="rise" style="animation-delay:.4s; font-size:44px; margin-top:40px;">genre: acid house</p>
+      <p class="rise" style="animation-delay:.9s; font-size:44px;">126 BPM &middot; key A min</p>
+      <p class="rise" style="animation-delay:1.4s; font-size:44px; color:var(--text-dim);">
+        &ldquo;&hellip;lyrics snippet&hellip;&rdquo;</p>
+    </div>
+    <p class="punchline rise" style="animation-delay:2s; font-size:60px; margin-top:80px;">
+      Unreleased? Gemma listens<br/>and describes it.</p>
+  </section>
+
+  <!-- Scene 8 — The morning after + tagline (52–60s) -->
+  <section class="scene clip" data-start="52" data-duration="8" data-track-index="0">
+    <div class="glass rise" style="padding:56px 70px; width:820px;">
+      <div class="label">Your night</div>
+      <p style="font-size:48px; font-weight:600; margin-top:24px;">
+        24 tracks &middot; 3 pins &middot; 1 unreleased</p>
+    </div>
+    <div class="glass rise" style="animation-delay:.8s; padding:56px 70px; width:820px; margin-top:48px;">
+      <div class="label" style="color:var(--accent);">&#9835; Apple Music</div>
+      <p style="font-size:48px; font-weight:600; margin-top:24px;">Encore — 25 Jul 2026</p>
+    </div>
+    <p class="punchline rise" style="animation-delay:1.8s; font-size:64px; margin-top:90px;">
+      Shazam gives you a title.<br/>Encore gives you back your night.</p>
+  </section>
+
+  <!-- Music bed: drop at ~38s must land on scene 6's flash -->
+  <audio data-start="0" data-duration="60" data-track-index="1" src="assets/bed.wav"></audio>
+</div>
+</body>
+</html>
