@@ -21,6 +21,8 @@ struct EncoreApp: App {
                     PagePlaylist()
                 }
                 .tabItem { Label("Playlist", systemImage: "music.note.list") }
+                SettingsView()
+                    .tabItem { Label("Settings", systemImage: "gearshape") }
             }
             .onAppear { stage.start() }
         }

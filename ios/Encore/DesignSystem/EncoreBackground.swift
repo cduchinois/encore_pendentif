@@ -9,6 +9,14 @@ import SwiftUI
 struct EncoreBackground: View {
     var darken: Bool
 
+    @ObservedObject private var settings = AppSettings.shared
+
+    /// User-picked image from Settings wins over the bundled asset.
+    private var backgroundImage: Image {
+        if let custom = settings.customBackground { return Image(uiImage: custom) }
+        return Image("BackgroundImage")
+    }
+
     var body: some View {
         // GeometryReader with `.ignoresSafeArea()` on the outside reports the
         // full window size (safe-area extension included). We set the image
@@ -17,7 +25,7 @@ struct EncoreBackground: View {
         // containers and gets clipped. Fits background to full height, lets
         // the width bleed off-screen.
         GeometryReader { proxy in
-            Image("BackgroundImage")
+            backgroundImage
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: proxy.size.width, height: proxy.size.height)
