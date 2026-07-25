@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Generate landing/index.html — the Encore preorder landing page.
 
-Reuses the Pendant-screen phone mockup from demo/submission/gen_slides.py so the
-landing visual stays in sync with the submission media.
+Reuses the phone-mockup CSS/components from demo/submission/gen_slides.py.
+The hero phone shows the real "One More Time" session screen, recreated over
+the app's actual background asset (ios/.../BackgroundImage.png, downscaled).
 
 Usage:
-    python3 gen_landing.py [inter.woff2] [stripe_payment_link_url]
+    python3 gen_landing.py [assets_dir] [stripe_payment_link_url]
+
+assets_dir may contain (all optional, page degrades gracefully):
+    inter-400.woff2      UI font, embedded base64
+    fraunces-600.woff2   logo font, embedded base64
+    bg_screen.jpg        downscaled app background for the phone screen
 
 The Stripe URL defaults to a placeholder; create the real one in the Stripe
 Dashboard (Payment Links -> new -> one-time, 42.00 EUR) and re-run, or
@@ -16,21 +22,83 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "demo" / "submission"))
-from gen_slides import BRAND_MARK, CSS as MOCK_CSS, screen_pendant  # noqa: E402
+from gen_slides import (  # noqa: E402
+    CSS as MOCK_CSS, card_head, ic_wand, ic_wave, ic_wifi, sect, stats,
+    track_card, trow, waveform,
+)
 
 OUT = Path(__file__).parent / "index.html"
+ASSETS = Path(sys.argv[1]) if len(sys.argv) > 1 else None
 
 STRIPE_LINK = sys.argv[2] if len(sys.argv) > 2 else "https://buy.stripe.com/REPLACE_WITH_PAYMENT_LINK"
 PRICE = "42€"
 DELIVERY = "1 October 2026"
 
 
+def _asset(name):
+    if ASSETS and (ASSETS / name).exists():
+        return (ASSETS / name).read_bytes()
+    return None
+
+
 def font_css():
-    if len(sys.argv) > 1 and Path(sys.argv[1]).exists():
-        b64 = base64.b64encode(Path(sys.argv[1]).read_bytes()).decode()
-        return ("@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;"
-                f"src:url(data:font/woff2;base64,{b64}) format('woff2');}}")
-    return "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');"
+    css = []
+    inter = _asset("inter-400.woff2")
+    if inter:
+        css.append("@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;"
+                   f"src:url(data:font/woff2;base64,{base64.b64encode(inter).decode()}) format('woff2');}}")
+    else:
+        css.append("@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');")
+    fraunces = _asset("fraunces-600.woff2")
+    if fraunces:
+        css.append("@font-face{font-family:'Fraunces';font-style:normal;font-weight:600;"
+                   f"src:url(data:font/woff2;base64,{base64.b64encode(fraunces).decode()}) format('woff2');}}")
+    else:
+        css.append("@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600&display=swap');")
+    return "\n".join(css)
+
+
+def bg_img_tag():
+    jpg = _asset("bg_screen.jpg")
+    if jpg:
+        return f'<img class="bgimg" alt="" src="data:image/jpeg;base64,{base64.b64encode(jpg).decode()}"/>'
+    return '<div class="bgimg" style="background:linear-gradient(180deg,#b9cfa0,#8fae78 60%,#5d7a4c)"></div>'
+
+
+def status_light(time):
+    dots = "".join('<circle cx="{}" cy="8" r="1.7"/>'.format(4 + i * 5) for i in range(4))
+    signal = f'<svg width="20" height="12" viewBox="0 0 24 12" fill="currentColor" opacity="0.45">{dots}</svg>'
+    battery = ('<svg width="27" height="13" viewBox="0 0 27 13">'
+               '<rect x="0.5" y="0.5" width="21" height="12" rx="3.5" fill="none" '
+               'stroke="currentColor" stroke-opacity="0.6"/>'
+               '<rect x="2" y="2" width="18" height="9" rx="2" fill="currentColor"/>'
+               '<rect x="23" y="4" width="2.5" height="5" rx="1.2" fill="currentColor" '
+               'fill-opacity="0.6"/></svg>')
+    return (f'<div class="status statdark"><span class="time">{time}</span>'
+            f'<span class="sicons">{signal}{ic_wifi()}{battery}</span></div>')
+
+
+def screen_session():
+    """The real app screenshot: One More Time recap over the botanical background."""
+    rows = [
+        trow("00:00", track_card("One More Time", "Daft Punk", meta="123 BPM &middot; 5:20")),
+        trow("04:12", track_card("Music Sounds Better With You", "Stardust",
+                                 meta="122 BPM &middot; 7:03", cls="rainbow")),
+        trow("08:47", track_card("Lady (Hear Me Tonight)", "Modjo", meta="126 BPM &middot; 5:00")),
+        trow("13:26", track_card("Finally", "Kings of Tomorrow", meta="121 BPM &middot; 8:22")),
+        trow("23:10", track_card("Sing It Back", "Moloko")),
+    ]
+    return f'''<div class="screen light">{bg_img_tag()}<div class="scrhaze"></div><div class="sc">
+{status_light("20:32")}
+<div class="eyeb">ENCORE</div>
+<div class="h1">One More Time</div>
+<div class="sub">DJ Set &middot; 1 h 24 min &middot; Paris &middot; 24 Jul 2026</div>
+<div class="gcard session-green">{card_head(ic_wave(17), "SESSION LIVE")}{waveform(46, "humps", salt=5)}
+{stats([("12", "TRACKS"), ("1h24", "DUR&Eacute;E"), ("125", "AVG BPM")])}</div>
+{sect("La setlist", "extrait &middot; 00:00 &rarr; 58:37")}
+<div class="timeline">{"".join(rows)}</div>
+<div class="playlist-btn lightbtn">{ic_wand()}<span>G&eacute;n&eacute;rer une playlist</span></div>
+</div></div>'''
 
 
 LANDING_CSS = f"""
@@ -45,9 +113,13 @@ body{{color:#fff;font-family:'Inter',-apple-system,'Helvetica Neue',sans-serif;
   background-repeat:no-repeat;background-size:auto,auto,100% 100%}}
 .wrap{{max-width:1140px;margin:0 auto;padding:0 24px}}
 
-.lp-nav{{display:flex;align-items:center;justify-content:space-between;padding:28px 0}}
-.lp-brand{{display:flex;align-items:center;gap:12px;font-weight:800;font-size:17px;
-  letter-spacing:6px;color:#b5e878;text-decoration:none}}
+.logo-word{{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:0;
+  background:linear-gradient(93deg,#1b6b4a 0%,#37945a 20%,#7cbb55 38%,#b8dd75 52%,
+    #d9eeb0 64%,#a5e0c6 82%,#62c9b2 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent}}
+
+.lp-nav{{display:flex;align-items:center;justify-content:space-between;padding:26px 0}}
+.lp-brand{{text-decoration:none;font-size:34px;line-height:1}}
 .btn{{display:inline-flex;align-items:center;justify-content:center;gap:10px;
   background:#9be15d;color:#0c1106;font-weight:700;text-decoration:none;
   border-radius:999px;padding:15px 30px;font-size:17px;letter-spacing:0.2px;
@@ -76,6 +148,39 @@ body{{color:#fff;font-family:'Inter',-apple-system,'Helvetica Neue',sans-serif;
 .mock-scale{{position:absolute;top:0;left:50%;transform:translateX(-50%) scale(0.9);
   transform-origin:top center}}
 
+/* ---- light (real-screenshot) phone screen ---- */
+.bgimg{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}}
+.scrhaze{{position:absolute;inset:0;background:linear-gradient(180deg,
+  rgba(235,242,225,0.22),rgba(210,225,195,0.10) 45%,rgba(120,140,100,0.18))}}
+.statdark{{color:#1c2413}}
+.screen.light .h1{{font-size:36px}}
+.screen.light .sub{{font-size:15px}}
+.screen.light .gcard{{padding:12px 14px}}
+.screen.light .stat b{{font-size:26px}}
+.screen.light .sect{{margin:14px 2px 8px}}
+.screen.light .tcard{{padding:11px 14px}}
+.screen.light .tbody{{padding-bottom:9px}}
+.screen.light .tt{{font-size:17px}}
+.screen.light .tt,.screen.light .ta,.screen.light .tm,.screen.light .stat,
+.screen.light .clabel{{text-shadow:0 1px 7px rgba(40,60,30,0.3)}}
+.screen.light .stat i{{color:rgba(255,255,255,0.85)}}
+.screen.light .eyeb,.screen.light .h1,.screen.light .sub{{
+  text-shadow:0 1px 14px rgba(40,60,30,0.35)}}
+.screen.light .eyeb{{color:rgba(255,255,255,0.95)}}
+.screen.light .gcard{{background:rgba(255,255,255,0.30);border-color:rgba(255,255,255,0.55)}}
+.screen.light .session-green{{background:rgba(150,205,110,0.42)}}
+.screen.light .tcard{{background:rgba(255,255,255,0.28);border-color:rgba(255,255,255,0.5)}}
+.screen.light .tcard.rainbow{{background:rgba(255,255,255,0.34)}}
+.screen.light .sect h3{{text-shadow:0 1px 10px rgba(40,60,30,0.3)}}
+.screen.light .sect span,.screen.light .ttime{{color:rgba(255,255,255,0.95);
+  text-shadow:0 1px 8px rgba(40,60,30,0.4)}}
+.screen.light .ta{{color:rgba(255,255,255,0.9)}}
+.screen.light .tm{{color:rgba(255,255,255,0.8)}}
+.screen.light .timeline::before{{background:rgba(255,255,255,0.65)}}
+.playlist-btn.lightbtn{{bottom:26px;background:rgba(255,255,255,0.30);
+  border-color:rgba(255,255,255,0.6);color:#fff;
+  text-shadow:0 1px 8px rgba(40,60,30,0.4)}}
+
 .steps{{display:flex;gap:24px;padding:60px 0}}
 .step{{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);
   border-radius:24px;padding:28px}}
@@ -99,9 +204,10 @@ body{{color:#fff;font-family:'Inter',-apple-system,'Helvetica Neue',sans-serif;
 .preorder .btn{{margin-top:26px}}
 
 .lp-footer{{border-top:1px solid rgba(255,255,255,0.1);padding:34px 0 44px;
-  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
   font-size:14px;color:rgba(255,255,255,0.5)}}
 .lp-footer a{{color:rgba(255,255,255,0.7)}}
+.lp-footer .logo-word{{font-size:22px}}
 
 @media (max-width: 960px){{
   .hero{{flex-direction:column-reverse;text-align:center;padding-top:10px}}
@@ -116,7 +222,9 @@ body{{color:#fff;font-family:'Inter',-apple-system,'Helvetica Neue',sans-serif;
 }}
 """
 
-HTML = f"""<!DOCTYPE html>
+
+def build_html():
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -132,7 +240,7 @@ HTML = f"""<!DOCTYPE html>
 <body>
 
 <nav class="lp-nav wrap">
-  <a class="lp-brand" href="#">{BRAND_MARK}<span>ENCORE</span></a>
+  <a class="lp-brand" href="#"><span class="logo-word">Encore</span></a>
   <a class="btn small" href="{STRIPE_LINK}">Preorder &middot; {PRICE}</a>
 </nav>
 
@@ -154,7 +262,7 @@ HTML = f"""<!DOCTYPE html>
     <p class="micro">Secure checkout via Stripe &middot; limited first batch</p>
   </div>
   <div class="hero-mock"><div class="mock-scale">
-    <div class="phone"><div class="island"></div>{screen_pendant()}</div>
+    <div class="phone"><div class="island"></div>{screen_session()}</div>
   </div></div>
 </header>
 
@@ -203,8 +311,10 @@ HTML = f"""<!DOCTYPE html>
 </section>
 
 <footer class="lp-footer wrap">
-  <span>Encore &mdash; built at the Gemma 4 Hackathon, Paris &middot; July 2026</span>
-  <span>Team: Jade &amp; Mathieu &middot; <a href="https://github.com/cduchinois/encore_pendentif">GitHub</a></span>
+  <span class="logo-word">Encore</span>
+  <span>Built at the Gemma 4 Hackathon, Paris &middot; July 2026 &middot;
+    Team: Jade &amp; Mathieu &middot;
+    <a href="https://github.com/cduchinois/encore_pendentif">GitHub</a></span>
 </footer>
 
 </body>
@@ -212,8 +322,9 @@ HTML = f"""<!DOCTYPE html>
 
 
 def main():
-    OUT.write_text(HTML, encoding="utf-8")
-    print(f"wrote {OUT} ({len(HTML)} bytes), stripe link: {STRIPE_LINK}")
+    html = build_html()
+    OUT.write_text(html, encoding="utf-8")
+    print(f"wrote {OUT} ({len(html)} bytes), stripe link: {STRIPE_LINK}")
 
 
 if __name__ == "__main__":
