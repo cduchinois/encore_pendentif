@@ -1,15 +1,15 @@
-//  LiveSessionView.swift
+//  PendantPage.swift
 //  Encore
 //
-//  Live session page, same design language as PagePlaylist:
-//  - "CAPTURE VIBE" card = the summary card, but fed by the real pendant
-//    stream (waveform + connection/battery/loss stats)
+//  "Pendant" page, same design language as DemoPage:
+//  - "CAPTURE VIBE" card = the summary card, fed by the real pendant stream
+//    (waveform + connection/battery/loss stats)
 //  - the setlist timeline = SetlistTimeline, fed by the journal's
 //    track_match events instead of demo data.
 
 import SwiftUI
 
-struct LiveSessionView: View {
+struct PendantPage: View {
     @ObservedObject var stage: RecognitionStage
     @ObservedObject var receiver: UDPAudioReceiver
     @ObservedObject var journal: SessionStore
@@ -35,10 +35,10 @@ struct LiveSessionView: View {
                     setlistSectionHeader
                         .padding(.bottom, 2)
 
-                    if liveTracks.isEmpty {
+                    if journal.playlistTracks.isEmpty {
                         emptySetlist
                     } else {
-                        SetlistTimeline(tracks: liveTracks)
+                        SetlistTimeline(tracks: journal.playlistTracks)
                     }
                 }
                 .padding(.horizontal, Theme.Space.screenH)
@@ -58,7 +58,7 @@ struct LiveSessionView: View {
                 .foregroundStyle(.white.opacity(0.78))
                 .shadow(color: .black.opacity(0.25), radius: 6, y: 1)
 
-            Text("Session live")
+            Text("Pendant")
                 .font(Theme.Font.display(30))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.30), radius: 14, y: 2)
@@ -77,7 +77,7 @@ struct LiveSessionView: View {
         return connected ? "\(date) · en direct" : "\(date) · pendentif en attente"
     }
 
-    // MARK: Capture vibe card (mirror of PagePlaylist.summaryCard)
+    // MARK: Capture vibe card (mirror of DemoPage's summary card)
 
     private var connected: Bool {
         guard let t = receiver.lastPacketAt else { return false }
@@ -114,7 +114,7 @@ struct LiveSessionView: View {
                 .frame(height: 44)
 
             HStack(spacing: 0) {
-                summaryStat(value: "\(liveTracks.count)", label: "tracks")
+                summaryStat(value: "\(journal.playlistTracks.count)", label: "tracks")
                 statDivider
                 summaryStat(value: "\(receiver.framesPerSecond)", label: "fps")
                 statDivider
@@ -148,7 +148,7 @@ struct LiveSessionView: View {
             .frame(width: 1, height: 30)
     }
 
-    // MARK: Setlist (mirror of PagePlaylist's section, fed by the journal)
+    // MARK: Setlist
 
     private var setlistSectionHeader: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -157,7 +157,7 @@ struct LiveSessionView: View {
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.25), radius: 6, y: 1)
             Spacer(minLength: 8)
-            Text("live · \(liveTracks.count) tracks")
+            Text("live · \(journal.playlistTracks.count) tracks")
                 .font(Theme.Font.label(12, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.68))
                 .monospacedDigit()
@@ -174,37 +174,14 @@ struct LiveSessionView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 6)
     }
-
-    /// journal track_match events -> the same model PagePlaylist renders.
-    private var liveTracks: [PlaylistTrack] {
-        let pinnedIDs = Set(journal.events.filter { $0.kind == .pin }.compactMap(\.track_id))
-        let matches = journal.events.filter { $0.kind == .track_match }
-        return matches.enumerated().map { i, ev in
-            let meta = ev.track_id.flatMap { CatalogStore.shared.track($0) }
-            return PlaylistTrack(
-                index: i + 1,
-                title: meta?.title ?? "Titre inconnu",
-                artist: meta?.artist ?? "",
-                timestamp: Self.mmss(ev.ts_ms),
-                duration: nil,
-                bpm: meta?.bpm.map { Int($0) },
-                isPinned: ev.track_id.map { pinnedIDs.contains($0) } ?? false,
-                isPlaying: i == matches.count - 1
-            )
-        }
-    }
-
-    private static func mmss(_ ms: Int) -> String {
-        let s = ms / 1000
-        return String(format: "%02d:%02d", s / 60, s % 60)
-    }
 }
 
 // MARK: - Live waveform
 
-/// Same capsule look as PagePlaylist's decorative waveform, but driven by the
-/// real per-frame RMS coming off the pendant stream.
-private struct LiveWaveform: View {
+/// Same capsule look as DemoPage's decorative waveform, but driven by real
+/// per-chunk RMS (pendant stream or iPhone mic). Shared by PendantPage and
+/// PhonePage.
+struct LiveWaveform: View {
     let values: [Float]
     var barCount: Int
     var height: CGFloat

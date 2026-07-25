@@ -1,7 +1,7 @@
 //  PlaylistTrack.swift
 //  Encore
 //
-//  Model + demo dataset consumed by PagePlaylist.
+//  Model + demo dataset consumed by DemoPage (and the live setlists).
 
 import Foundation
 

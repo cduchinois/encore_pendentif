@@ -2,9 +2,9 @@
 
 [← Main README](../README.md) · Contracts: [contracts/](../contracts/README.md) · Owner: ios-dev agent
 
-Everything intelligent runs here, on-device: audio receive, the 4-stage recognition ladder, Gemma E2B, the journal, the recap, and the Apple Music playlist. Most files under `Encore/` are **stubs showing the intended module layout** — they are implemented on hackathon day. Exceptions already implemented: `App/`, `DesignSystem/`, `UI/PagePlaylist.swift` + `UI/PlaylistTrack.swift` (Jade's design mockup with demo data, the visual reference for all other pages) and `Assets.xcassets` (background image, app icon set). The demo dashboard is this app's screen, projected.
+Everything intelligent runs here, on-device: audio receive, the 4-stage recognition ladder, Gemma E2B, the journal, the recap, and the Apple Music playlist. Most files under `Encore/` are **stubs showing the intended module layout** — they are implemented on hackathon day. Exceptions already implemented: `App/`, `DesignSystem/`, `UI/DemoPage.swift` + `UI/PlaylistTrack.swift` (Jade's design mockup with demo data, the visual reference for all other pages) and `Assets.xcassets` (background image, app icon set). The demo dashboard is this app's screen, projected.
 
-> Naming heads-up: `PagePlaylist` uses SwiftUI's built-in `TimelineView` for animations. When implementing the dashboard in `UI/TimelineView.swift`, name the type something else (e.g. `DashboardTimeline`) or it will shadow SwiftUI's and break those call sites.
+> Naming heads-up: `DemoPage` uses SwiftUI's built-in `TimelineView` for animations. When implementing the dashboard in `UI/TimelineView.swift`, name the type something else (e.g. `DashboardTimeline`) or it will shadow SwiftUI's and break those call sites.
 
 ## Getting started (for anyone on the team)
 
@@ -21,7 +21,7 @@ git checkout claude/ios-app-dev-l4ph2o   # current iOS branch
 open ios/Encore.xcodeproj
 ```
 
-Pick an iPhone simulator, ⌘R. It launches on the PagePlaylist mockup.
+Pick an iPhone simulator, ⌘R. Four tabs: **Pendant** (live capture from the pendant), **Phone** (recognition via the iPhone mic), **Demo** (the design mockup) and **Settings** (custom background).
 
 **Run on your iPhone (one-time per Mac/phone):**
 
@@ -49,11 +49,11 @@ Before committing, check `git diff ios/Encore.xcodeproj` — only commit project
 
 | Module | Role | Gate |
 |---|---|---|
-| `App/EncoreApp.swift` | `@main` entry point — currently launches the PagePlaylist mockup | done |
+| `App/EncoreApp.swift` | `@main` entry point — Pendant / Phone / Demo / Settings tabs | done |
 | `DesignSystem/EncoreTheme.swift` | Design tokens: palette, radii, spacing, typography, `Color(hex:)` — **the reference for every page** | done |
 | `DesignSystem/EncoreBackground.swift` | Photographic backdrop + gradient veils (asset `BackgroundImage`) | done |
-| `UI/PagePlaylist.swift` | Recap page mockup: header, summary card, setlist timeline (aurora pin glow, pulsing live dot), floating CTA — all Liquid Glass (`.glassEffect`, iOS 26) | done |
-| `UI/PlaylistTrack.swift` | View model + demo dataset for PagePlaylist (to be replaced by the journal feed) | done |
+| `UI/DemoPage.swift` | Recap page mockup: header, summary card, setlist timeline (aurora pin glow, pulsing live dot), floating CTA — all Liquid Glass (`.glassEffect`, iOS 26) | done |
+| `UI/PlaylistTrack.swift` | View model + demo dataset for DemoPage; live pages map the journal onto it (`UI/JournalTracks.swift`) | done |
 | `Audio/UDPAudioReceiver.swift` | Listen on `:7777`, unpack `AUDIO`/`EVENT`/`HEARTBEAT` packets per [pendant_protocol.md](../contracts/pendant_protocol.md), ring buffer + debug waveform, send `CMD_LED` back | 1 (10:30) |
 | `Recognition/ShazamKitMatcher.swift` | Load `.shazamsignature` files from the catalog build into an `SHCustomCatalog`; offline match in 3–5 s | 2 (12:00) |
 | `Recognition/RecognitionStage.swift` | The ladder: local catalog → embeddings (bonus) → world catalog (bonus) → Gemma ID card; every unknown keeps clip + fingerprint + ID card | 2–3 |
@@ -69,8 +69,9 @@ Before committing, check `git diff ios/Encore.xcodeproj` — only commit project
 Implemented: `UDPAudioReceiver`, `ShazamKitMatcher`, `RecognitionStage`,
 `SessionStore`, `CatalogStore` + the bundled catalog (`Catalog/catalog.json`
 + 388 `Catalog/signatures/*.shazamsignature`, see `data/catalog_manifest.md`).
-The app opens on a **Live** tab (waveform + stats + current match); the
-Playlist mockup sits in the second tab.
+The app opens on the **Pendant** tab (capture card + live setlist); the
+**Phone** tab does the same through the iPhone mic (no pendant needed —
+Mathieu's rig), and the **Demo** tab keeps the design mockup.
 
 1. Open `Encore.xcodeproj`, build on the iPhone that hosts the hotspot.
 2. First launch: **accept the "local network" permission popup** — without it

@@ -1,8 +1,9 @@
 //  EncoreApp.swift
 //  Encore
 //
-//  App entry point. "Live" is the working session (receiver + recognition),
-//  "Playlist" is the design mockup until the journal wires into it.
+//  App entry point. Pendant = live capture via the pendant stream,
+//  Phone = recognition via the iPhone mic (no pendant), Demo = the design
+//  mockup until the journal wires into it, Settings = app preferences.
 
 import SwiftUI
 
@@ -13,14 +14,14 @@ struct EncoreApp: App {
     var body: some Scene {
         WindowGroup {
             TabView {
-                LiveSessionView(stage: stage)
-                    .tabItem { Label("Live", systemImage: "waveform") }
-                MicListenView(stage: stage)
-                    .tabItem { Label("Listen", systemImage: "mic") }
+                PendantPage(stage: stage)
+                    .tabItem { Label("Pendant", systemImage: "waveform") }
+                PhonePage(stage: stage)
+                    .tabItem { Label("Phone", systemImage: "iphone") }
                 PlaylistPreviewContainer {
-                    PagePlaylist()
+                    DemoPage()
                 }
-                .tabItem { Label("Playlist", systemImage: "music.note.list") }
+                .tabItem { Label("Demo", systemImage: "music.note.list") }
                 SettingsView()
                     .tabItem { Label("Settings", systemImage: "gearshape") }
             }

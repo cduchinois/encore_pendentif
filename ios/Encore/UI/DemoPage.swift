@@ -1,14 +1,14 @@
-//  PagePlaylist.swift
+//  DemoPage.swift
 //  Encore
 //
-//  Standalone demo page — musical recap of a DJ set with a scrollable
+//  Standalone demo page (mock data) — musical recap of a DJ set with a scrollable
 //  timeline of identified tracks. Uses only the local design system
 //  (`Theme.Radius`, `Theme.Font`) and the native iOS 26 Liquid Glass API
 //  (`.glassEffect(.clear.interactive())`).
 
 import SwiftUI
 
-struct PagePlaylist: View {
+struct DemoPage: View {
 
     // MARK: Inputs
 
@@ -219,8 +219,8 @@ struct PagePlaylist: View {
 /// Vertical timeline: continuous rail + dots at each timestamp + track cards
 /// on the right. Rail is a single Rectangle drawn behind all rows (via
 /// ZStack) so it never breaks between rows.
-/// Internal (not private): LiveSessionView renders the live journal with the
-/// exact same timeline.
+/// Internal (not private): PendantPage and PhonePage render the live journal
+/// with the exact same timeline.
 struct SetlistTimeline: View {
 
     let tracks: [PlaylistTrack]
@@ -566,7 +566,7 @@ private struct PulsingDot: View {
 // MARK: - Preview container
 
 /// Forest backdrop container used for previews and demo full-screen covers.
-/// PagePlaylist itself stays transparent and inherits the parent's
+/// DemoPage itself stays transparent and inherits the parent's
 /// background — the container decides.
 struct PlaylistPreviewContainer<Content: View>: View {
     @ViewBuilder var content: Content
@@ -582,14 +582,14 @@ struct PlaylistPreviewContainer<Content: View>: View {
 
 // MARK: - Preview
 
-#Preview("PagePlaylist — forest backdrop") {
+#Preview("DemoPage — forest backdrop") {
     PlaylistPreviewContainer {
-        PagePlaylist(onClose: {}, onGenerate: {})
+        DemoPage(onClose: {}, onGenerate: {})
     }
 }
 
-#Preview("PagePlaylist — no close button") {
+#Preview("DemoPage — no close button") {
     PlaylistPreviewContainer {
-        PagePlaylist()
+        DemoPage()
     }
 }
