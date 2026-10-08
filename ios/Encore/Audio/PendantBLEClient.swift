@@ -87,7 +87,19 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
     /// Drop the remembered pendant and look for any Encore pendant again.
     func forget() {
         UserDefaults.standard.removeObject(forKey: Self.knownPendantKey)
-        forgottenID = peripheral?.identifier
+        let forgotten = peripheral?.identifier
+        forgottenID = forgotten
+        // Skip it only for 10 s, long enough to catch another pendant nearby.
+        // After that the same one is welcome again (a mis-tap must not lose it
+        // until the app restarts). Restart the scan: iOS reports a peripheral
+        // once per scan, and we already ignored it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            guard self.forgottenID == forgotten, self.state == .scanning,
+                  let central = self.central else { return }
+            self.forgottenID = nil
+            central.stopScan()
+            central.scanForPeripherals(withServices: [Self.serviceUUID], options: nil)
+        }
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
         peripheral = nil
         rxChar = nil
