@@ -47,7 +47,8 @@ Before committing, check `git diff ios/Encore.xcodeproj` — only commit project
 | `App/EncoreApp.swift` | `@main` entry point: Pendant / Phone / Demo / Settings tabs |
 | `Audio/PendantBLEClient.swift` | CoreBluetooth central for [pendant_protocol.md](../contracts/pendant_protocol.md) v2: scan, connect, remember and auto-reconnect the pendant, decode μ-law audio, events, heartbeats; writes `CMD_LED`. State restoration + `bluetooth-central` background mode keep it alive with the screen locked |
 | `Recognition/RecognitionStage.swift` | Owns the two capture pipelines (pendant, phone mic), network monitor, LED feedback |
-| `Recognition/CapturePipeline.swift` | One `SHSession()` (Shazam cloud catalog) per source, one confirmed row per song, unknown rows after 20 s of unmatched music ("pas de réseau" when offline) |
+| `Recognition/CapturePipeline.swift` | One `SHSession()` (Shazam cloud catalog) per source, one row per song via `MatchVoter`, unknown rows after 20 s of unmatched music ("pas de réseau" when offline) |
+| `Recognition/MatchVoter.swift` | Raw Shazam answers → confirmed songs: versions of the same title are one song, a new song needs 2 agreeing answers (3 to replace the one playing), the most reported version wins |
 | `Recognition/ShazamKitMatcher.swift` | `SHMatchedMediaItem` → `MatchedTrack` (the journal's `track` object) |
 | `Recognition/MusicDetector.swift` | Apple's sound classifier: music vs talk/noise, gates unknown rows |
 | `Journal/SessionStore.swift` | Append-only session journal, persisted to Documents |

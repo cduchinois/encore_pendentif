@@ -69,7 +69,7 @@ Each step has an exit gate. Do not start the next step on hardware before the ga
 - **Gate:** Pendant tab shows connected, ~100 pkt/s, moving waveform; double tap produces a pin; LED flashes on match.
 
 ### Step 5. Cloud recognition (done on this branch, needs device validation)
-- `CapturePipeline` uses `SHSession()` (Shazam catalog). One confirmed match per song, keyed by Shazam ID.
+- `CapturePipeline` uses `SHSession()` (Shazam catalog). Shazam's streaming answers are voted on (`MatchVoter`): covers and karaoke versions of the same title count as the same song, a new song needs 2 agreeing answers (3 to replace the one playing). First field test without voting gave wrong versions and a new row every few seconds.
 - Journal stores the full `track` object; setlist rows show title, artist and artwork; pins reference the track.
 - Unknown rows kept (20 s of music with no match), labelled "pas de réseau" when the phone was offline.
 - Offline banner on the capture cards.

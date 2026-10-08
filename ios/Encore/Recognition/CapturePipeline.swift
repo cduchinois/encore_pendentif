@@ -30,8 +30,8 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
     /// The audio queue (ingest) and ShazamKit's delegate queue both touch
     /// the state below.
     private let lock = NSLock()
-    /// Song currently confirmed; a match with the same key is the same row.
-    private var confirmedKey: String? = nil
+    /// Raw Shazam answers -> confirmed songs (votes, same-title versions).
+    private var voter = MatchVoter()
     /// 0.5 s chunks of music heard since the last match.
     private var musicChunksUnmatched = 0
     private var unknownOpen = false
@@ -78,7 +78,7 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
             if musicChunksUnmatched >= threshold {
                 musicChunksUnmatched = 0
                 unknownOpen = true
-                confirmedKey = nil          // the same song matching later = a new row
+                voter.clear()               // the same song matching later = a new row
                 openUnknown = true
             }
         }
@@ -102,20 +102,16 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
 
     func session(_ session: SHSession, didFind match: SHMatch) {
         guard let item = match.mediaItems.first else { return }
-        let track = MatchedTrack(item)
 
-        // Shazam's catalog is reliable enough that one match confirms
-        // (the hackathon's custom catalog needed two).
+        // One answer is not enough: Shazam often returns a cover or a
+        // look-alike for a few seconds. MatchVoter waits for agreement.
         lock.lock()
         musicChunksUnmatched = 0
-        let isNew = confirmedKey != track.key
-        let wasPlaying = confirmedKey != nil
-        if isNew {
-            confirmedKey = track.key
-            unknownOpen = false
-        }
+        let wasPlaying = voter.confirmed != nil
+        let confirmed = voter.add(MatchedTrack(item))
+        if confirmed != nil { unknownOpen = false }
         lock.unlock()
-        guard isNew else { return }
+        guard let track = confirmed else { return }
 
         journal.append(.track_match, track: track, source: .world_catalog)
         if wasPlaying { journal.append(.transition, track: track, source: .world_catalog) }
