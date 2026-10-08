@@ -1,7 +1,7 @@
 //  EncoreApp.swift
 //  Encore
 //
-//  App entry point. Pendant = live capture via the pendant stream,
+//  App entry point. Pendant = live capture via the pendant's BLE stream,
 //  Phone = recognition via the iPhone mic (no pendant), Demo = the design
 //  mockup until the journal wires into it, Settings = app preferences.
 
@@ -22,7 +22,7 @@ struct EncoreApp: App {
                     DemoPage()
                 }
                 .tabItem { Label("Demo", systemImage: "music.note.list") }
-                SettingsView()
+                SettingsView(receiver: stage.receiver)
                     .tabItem { Label("Settings", systemImage: "gearshape") }
             }
             .onAppear { stage.start() }

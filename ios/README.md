@@ -1,10 +1,8 @@
-# ios/ — the brain (Swift app, all local)
+# ios/ — the Encore app (MVP branch)
 
-[← Main README](../README.md) · Contracts: [contracts/](../contracts/README.md) · Owner: ios-dev agent
+[← Main README](../README.md) · Contracts: [contracts/](../contracts/README.md) · PRD: [docs/MVP_PRD.md](../docs/MVP_PRD.md) · Owner: ios-dev agent
 
-Everything intelligent runs here, on-device: audio receive, the 4-stage recognition ladder, Gemma E2B, the journal, the recap, and the Apple Music playlist. Most files under `Encore/` are **stubs showing the intended module layout** — they are implemented on hackathon day. Exceptions already implemented: `App/`, `DesignSystem/`, `UI/DemoPage.swift` + `UI/PlaylistTrack.swift` (Jade's design mockup with demo data, the visual reference for all other pages) and `Assets.xcassets` (background image, app icon set). The demo dashboard is this app's screen, projected.
-
-> Naming heads-up: `DemoPage` uses SwiftUI's built-in `TimelineView` for animations. When implementing the dashboard in `UI/TimelineView.swift`, name the type something else (e.g. `DashboardTimeline`) or it will shadow SwiftUI's and break those call sites.
+The MVP app does two things: it receives the pendant's audio over **Bluetooth Low Energy** and names the songs with **ShazamKit against Shazam's cloud catalog**. No local catalog, no Gemma. The journal of the night (setlist, pins, energy) is written per [journal.schema.json](../contracts/journal.schema.json).
 
 ## Getting started (for anyone on the team)
 
@@ -17,11 +15,11 @@ Everything intelligent runs here, on-device: audio receive, the 4-stage recognit
 ```bash
 git clone https://github.com/cduchinois/encore_pendentif.git
 cd encore_pendentif
-git checkout claude/ios-app-dev-l4ph2o   # current iOS branch
+git checkout MVP
 open ios/Encore.xcodeproj
 ```
 
-Pick an iPhone simulator, ⌘R. Four tabs: **Pendant** (live capture from the pendant), **Phone** (recognition via the iPhone mic), **Demo** (the design mockup) and **Settings** (custom background).
+Pick an iPhone simulator, ⌘R. Four tabs: **Pendant** (live capture from the pendant over BLE), **Phone** (recognition via the iPhone mic), **Demo** (the design mockup) and **Settings** (pendant link, custom background). The simulator has no Bluetooth: use the Phone tab there.
 
 **Run on your iPhone (one-time per Mac/phone):**
 
@@ -32,7 +30,7 @@ Pick an iPhone simulator, ⌘R. Four tabs: **Pendant** (live capture from the pe
 **Push your work:**
 
 ```bash
-git checkout claude/ios-app-dev-l4ph2o   # or a feat/<issue#>-name branch off it
+git checkout MVP                         # or a feat/<issue#>-name branch off it
 git add ios/
 git commit -m "ios: <what you did>"      # module prefix, see repo rules
 git push -u origin <branch>
@@ -40,56 +38,36 @@ git push -u origin <branch>
 
 Before committing, check `git diff ios/Encore.xcodeproj` — only commit project changes that are intentional (new capability, new package), never your signing team or `xcuserdata` (gitignored).
 
-**Still to add when the corresponding modules land** (not needed for the mockup):
+**ShazamKit (required, one time):** recognition uses Shazam's catalog, which needs the **ShazamKit App Service enabled on the App ID** (developer.apple.com → Certificates, Identifiers & Profiles → Identifiers → the app's bundle id → App Services → ShazamKit). This needs a paid Apple Developer Program team; a free Personal Team cannot enable it. Without it, every match fails silently and every row ends up "non reconnu".
 
-- Capabilities: Background Modes (BLE accessories), MusicKit; ShazamKit.framework.
-- Gemma: llama.cpp Swift package (or MediaPipe LLM pod) + the E2B GGUF in app resources. Test llama.cpp AND Google AI Edge on the Mac beforehand; keep the winner.
+## Module map
 
-## Module map — how the app is supposed to work
+| Module | Role |
+|---|---|
+| `App/EncoreApp.swift` | `@main` entry point: Pendant / Phone / Demo / Settings tabs |
+| `Audio/PendantBLEClient.swift` | CoreBluetooth central for [pendant_protocol.md](../contracts/pendant_protocol.md) v2: scan, connect, remember and auto-reconnect the pendant, decode μ-law audio, events, heartbeats; writes `CMD_LED`. State restoration + `bluetooth-central` background mode keep it alive with the screen locked |
+| `Recognition/RecognitionStage.swift` | Owns the two capture pipelines (pendant, phone mic), network monitor, LED feedback |
+| `Recognition/CapturePipeline.swift` | One `SHSession()` (Shazam cloud catalog) per source, one confirmed row per song, unknown rows after 20 s of unmatched music ("pas de réseau" when offline) |
+| `Recognition/ShazamKitMatcher.swift` | `SHMatchedMediaItem` → `MatchedTrack` (the journal's `track` object) |
+| `Recognition/MusicDetector.swift` | Apple's sound classifier: music vs talk/noise, gates unknown rows |
+| `Journal/SessionStore.swift` | Append-only session journal, persisted to Documents |
+| `UI/` | `PendantPage`, `PhonePage` (live setlists with artwork), `DemoPage` (design mockup, owns `SetlistTimeline`), `SettingsView` |
+| `DesignSystem/` | Design tokens, background, app settings |
+| `Playlist/MusicKitExporter.swift`, `UI/TimelineView.swift` | stubs, post-MVP |
 
-| Module | Role | Gate |
-|---|---|---|
-| `App/EncoreApp.swift` | `@main` entry point — Pendant / Phone / Demo / Settings tabs | done |
-| `DesignSystem/EncoreTheme.swift` | Design tokens: palette, radii, spacing, typography, `Color(hex:)` — **the reference for every page** | done |
-| `DesignSystem/EncoreBackground.swift` | Photographic backdrop + gradient veils (asset `BackgroundImage`) | done |
-| `UI/DemoPage.swift` | Recap page mockup: header, summary card, setlist timeline (aurora pin glow, pulsing live dot), floating CTA — all Liquid Glass (`.glassEffect`, iOS 26) | done |
-| `UI/PlaylistTrack.swift` | View model + demo dataset for DemoPage; live pages map the journal onto it (`UI/JournalTracks.swift`) | done |
-| `Audio/UDPAudioReceiver.swift` | Listen on `:7777`, unpack `AUDIO`/`EVENT`/`HEARTBEAT` packets per [pendant_protocol.md](../contracts/pendant_protocol.md), ring buffer + debug waveform, send `CMD_LED` back | 1 (10:30) |
-| `Recognition/ShazamKitMatcher.swift` | Load `.shazamsignature` files from the catalog build into an `SHCustomCatalog`; offline match in 3–5 s | 2 (12:00) |
-| `Recognition/RecognitionStage.swift` | The ladder: local catalog → embeddings (bonus) → world catalog (bonus) → Gemma ID card; every unknown keeps clip + fingerprint + ID card | 2–3 |
-| `Gemma/LlamaRunner.swift` | Gemma 4 E2B local runtime; structured JSON output validated against [id_card.schema.json](../contracts/id_card.schema.json); prompt in `Gemma/prompts/id_card.md` (BPM injected by DSP, never guessed) | 3 (13:30) |
-| `Gemma/ContextCompiler.swift` | Swift twin of `pipeline/context/compiler.py`: compact party state (setlist tail, BPM curve, crowd, pins) feeding every Gemma call | 3–4 |
-| `Journal/SessionStore.swift` | Append-only session journal per [journal.schema.json](../contracts/journal.schema.json): matches, ID cards, pins, moments, transitions, energy curve | 2+ |
-| `UI/TimelineView.swift` | The projected dashboard: live timeline, pins, energy — design reference in [demo/dashboard/recap_mockup.html](../demo/dashboard/recap_mockup.html) | 2 |
-| `Playlist/MusicKitExporter.swift` | "Want to live this night Encore?" → recap (Gemma) + playlist in Apple Music, pins first | 4 (15:00) |
-| `Resolve/SerpAPIClient.swift` | Bonus: deferred resolution client when WiFi returns (mirrors `pipeline/resolve/`) | bonus |
+`Info.plist` (next to the xcodeproj) only carries `UIBackgroundModes`; every other key is generated from `INFOPLIST_KEY_*` build settings (Bluetooth and microphone usage strings).
 
-## Gates 1-2 are implemented — how to test (2026-07-25)
+## How to test on device
 
-Implemented: `UDPAudioReceiver`, `ShazamKitMatcher`, `RecognitionStage`,
-`SessionStore`, `CatalogStore` + the bundled catalog (`Catalog/catalog.json`
-+ 388 `Catalog/signatures/*.shazamsignature`, see `data/catalog_manifest.md`).
-The app opens on the **Pendant** tab (capture card + live setlist); the
-**Phone** tab does the same through the iPhone mic (no pendant needed —
-Mathieu's rig), and the **Demo** tab keeps the design mockup.
+1. Flash the MVP firmware (`firmware/README.md`), pendant LED pulses blue = advertising.
+2. Run the app on the iPhone, accept the **Bluetooth** permission popup.
+3. Pendant tab: subtitle goes "recherche du pendentif" → "en direct", ~100 pkt/s, waveform moves, the pendant LED turns to a green pulse.
+4. Play a song on a speaker: title, artist and artwork appear in < 15 s and the pendant flashes purple.
+5. Double tap the pendant: the current song's card gets the aurora pin outline.
+6. Lock the phone for 5 minutes with music playing, unlock: the setlist kept growing.
 
-1. Open `Encore.xcodeproj`, build on the iPhone that hosts the hotspot.
-2. First launch: **accept the "local network" permission popup** — without it
-   zero packets arrive (the key is set via `INFOPLIST_KEY_NSLocalNetworkUsageDescription`).
-3. Pendant on → green dot, ~50 fps, waveform moves (gate 1). Double-tap → a
-   `pin` event in the list.
-4. Wait for "catalog…" to disappear (~few s: 388 signatures load into the
-   `SHCustomCatalog`), play a track from Mathieu's `Ultimate/` folder on a
-   speaker → title appears in <10 s, pendant flashes purple (gate 2).
-   A match needs 3-5 s of audio; frequent no-matches between tracks are normal.
+## Tasks
 
-## Tasks to be accomplished (day-of, in gate order)
-
-- [ ] UDP receiver + ring buffer + visible waveform (gate 1 — streaming is the biggest risk, validate first).
-- [ ] ShazamKit custom catalog matching on the prepared signatures (gate 2).
-- [ ] Journal + timeline UI per schema + mockup (gate 2).
-- [ ] Pin end-to-end: `EVENT(1)` → journal pin → UI badge → `CMD_LED` flash (gate 3).
-- [ ] Gemma runner + ID card on an unknown clip — output MUST validate the schema (gate 3).
-- [ ] Recap generation from compiled party state + energy curve (gate 4).
-- [ ] MusicKit playlist export (gate 4).
-- [ ] Bonus, on branches: embeddings stage, world-catalog stage, SerpAPI client, background BLE mode.
+- [ ] Device validation of steps 4 and 5 of the PRD.
+- [ ] Offline signature queue (match later when the network returns).
+- [ ] Export the night: Shazam library (`SHLibrary`) and/or Apple Music playlist.

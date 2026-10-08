@@ -12,8 +12,18 @@
       "properties": {
         "ts_ms": {"type": "integer"},
         "kind": {"enum": ["track_match", "id_card", "pin", "moment", "transition", "privacy_on", "privacy_off"]},
-        "track_id": {"type": ["integer", "null"], "description": "catalog.sqlite id when matched"},
-        "source": {"enum": ["local_catalog", "embedding", "world_catalog", "gemma", null]},
+        "track_id": {"type": ["integer", "null"], "description": "legacy v1 local catalog: catalog.sqlite id. MVP cloud matches leave it null and fill track"},
+        "track": {"type": ["object", "null"], "description": "MVP: the song matched (track_match) or pinned (pin), from ShazamKit's Shazam catalog",
+          "required": ["title", "artist"], "additionalProperties": false,
+          "properties": {
+            "shazam_id": {"type": ["string", "null"]},
+            "title": {"type": "string"},
+            "artist": {"type": "string"},
+            "isrc": {"type": ["string", "null"]},
+            "apple_music_id": {"type": ["string", "null"]},
+            "artwork_url": {"type": ["string", "null"]},
+            "apple_music_url": {"type": ["string", "null"]}}},
+        "source": {"enum": ["local_catalog", "embedding", "world_catalog", "gemma", null], "description": "world_catalog = Shazam cloud catalog (MVP)"},
         "id_card": {"$ref": "id_card.schema.json"},
         "transition_style": {"type": ["string", "null"], "description": "e.g. blend_32s, hard_cut"},
         "note": {"type": ["string", "null"]}

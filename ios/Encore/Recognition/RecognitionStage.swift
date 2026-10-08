@@ -2,77 +2,66 @@
 //  Encore
 //
 //  Owns the two independent capture pipelines and their audio sources:
-//  - pendant: UDP frames from the pendant -> `pendant` pipeline
-//  - phone:   iPhone mic (AVAudioEngine)  -> `phone` pipeline
-//  Each pipeline has its own SHSession and journal; they only share the
-//  custom catalog. The pendant timeline shows nothing unless the pendant
-//  streams, the phone timeline nothing unless the mic listens.
+//  - pendant: BLE μ-law frames from the pendant -> `pendant` pipeline
+//  - phone:   iPhone mic (AVAudioEngine)        -> `phone` pipeline
+//  Each pipeline has its own SHSession (Shazam cloud catalog) and journal.
+//  The pendant timeline shows nothing unless the pendant streams, the phone
+//  timeline nothing unless the mic listens.
 
 import Foundation
 import Combine
 import AVFoundation
+import Network
 
 final class RecognitionStage: ObservableObject {
-    let receiver = UDPAudioReceiver()
+    let receiver = PendantBLEClient()
     let pendant = CapturePipeline()
     let phone = CapturePipeline()
 
-    @Published var matcherReady = false
+    /// Shazam's catalog is in the cloud: no network, no recognition.
+    @Published var isOnline = true
     @Published var privacy = false
 
     private let format = AVAudioFormat(standardFormatWithSampleRate: 16000, channels: 1)!
     private let chunkSamples = 8000        // 0.5 s @ 16 kHz
     private var pendantPending: [Int16] = []
 
+    private let pathMonitor = NWPathMonitor()
+    private let onlineLock = NSLock()
+    private var onlineNow = true
+
     func start() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self, let built = ShazamCatalogBuilder.build() else { return }
-            self.pendant.attach(catalog: built.catalog, format: self.format)
-            self.phone.attach(catalog: built.catalog, format: self.format)
-            DispatchQueue.main.async { self.matcherReady = true }
+        pendant.attach(format: format)
+        phone.attach(format: format)
+
+        let online: () -> Bool = { [weak self] in
+            guard let self else { return true }
+            self.onlineLock.lock(); defer { self.onlineLock.unlock() }
+            return self.onlineNow
         }
+        pendant.isOnline = online
+        phone.isOnline = online
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            let ok = path.status == .satisfied
+            self.onlineLock.lock(); self.onlineNow = ok; self.onlineLock.unlock()
+            DispatchQueue.main.async { self.isOnline = ok }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "encore.network"))
 
         pendant.onConfirmed = { [weak self] _ in
             self?.receiver.sendLED(.flashOnce, r: 80, g: 0, b: 255)
         }
 
-        // Unknown clip -> Gemma ID card -> journal (kind id_card). The backend
-        // is read from Settings at call time; .off drops silently.
-        let resolve: (CapturePipeline) -> (UnknownClipRecorder.Clip, Int) -> Void = { pipeline in
-            { clip, tsStart in
-                let s = AppSettings.shared
-                let runner = LlamaRunner(backend: s.gemmaBackend,
-                                         serverURL: URL(string: s.gemmaServerURL),
-                                         geminiKey: s.geminiKey)
-                guard runner.backend != .off else { return }
-                Task {
-                    do {
-                        let card = try await runner.idCard(forWav: clip.wavURL,
-                                                           bpm: clip.bpm, tsStartMs: tsStart)
-                        pipeline.journal.append(.id_card, source: .gemma, idCard: card)
-                        print("ID card [\(card.genre)] \(card.description)")
-                    } catch {
-                        print("ID card failed: \(error)")
-                    }
-                }
-            }
-        }
-        pendant.onUnknownClip = resolve(pendant)
-        phone.onUnknownClip = resolve(phone)
-
+        // Green pulse = the app is listening (the pendant pulses blue on its own
+        // while it waits for a phone).
+        receiver.onReady = { [weak self] in self?.receiver.sendLED(.pulse, r: 0, g: 40, b: 0) }
         receiver.onAudioFrame = { [weak self] pcm in self?.ingestPendant(pcm) }
         receiver.onEvent = { [weak self] ev in self?.handlePendantEvent(ev) }
         receiver.start()
-
-        // Clip replay needs the .playback session: release the mic first
-        // (also prevents the mic from hearing the excerpt it just captured).
-        NotificationCenter.default.addObserver(forName: .encoreClipWillPlay,
-                                               object: nil, queue: .main) { [weak self] _ in
-            self?.stopMic()
-        }
     }
 
-    // MARK: Pendant source (UDP receive queue)
+    // MARK: Pendant source (receiver.audioQueue)
 
     private func ingestPendant(_ pcm: [Int16]) {
         // Protocol invariant: a pendant in privacy sends HEARTBEAT only.
@@ -81,7 +70,6 @@ final class RecognitionStage: ObservableObject {
         if privacy {
             DispatchQueue.main.async { if self.privacy { self.privacy = false } }
         }
-        guard matcherReady else { return }
         pendantPending.append(contentsOf: pcm)
         guard pendantPending.count >= chunkSamples else { return }
         let chunk = pendantPending; pendantPending.removeAll(keepingCapacity: true)
@@ -93,9 +81,9 @@ final class RecognitionStage: ObservableObject {
     private func handlePendantEvent(_ ev: PendantEvent) {
         switch ev {
         case .pin:
-            pendant.pin(trackID: nil)
+            pendant.pin(pendant.currentTrack)
         case .privacyOn:
-            // pendantPending is owned by the UDP queue — never touch it here
+            // pendantPending is owned by the audio queue — never touch it here
             // (main thread); a stale half-second of buffer is harmless.
             privacy = true
             pendant.journal.append(.privacy_on)
@@ -162,7 +150,7 @@ final class RecognitionStage: ObservableObject {
     }
 
     private func feedMic(_ buf: AVAudioPCMBuffer) {
-        guard matcherReady, let conv = micConverter else { return }
+        guard let conv = micConverter else { return }
         let ratio = format.sampleRate / buf.format.sampleRate
         let capacity = AVAudioFrameCount(Double(buf.frameLength) * ratio) + 16
         guard let out = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else { return }

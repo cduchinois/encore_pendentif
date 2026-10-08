@@ -37,7 +37,7 @@ struct PhonePage: View {
                         emptySetlist
                     } else {
                         SetlistTimeline(tracks: journal.playlistTracks) { track in
-                            pipeline.pin(trackID: track.catalogID)
+                            pipeline.pin(track.track)
                         }
                     }
                 }
@@ -85,10 +85,10 @@ struct PhonePage: View {
                     .tracking(1.4)
                     .foregroundStyle(.white.opacity(0.85))
                 Spacer(minLength: 0)
-                if !stage.matcherReady {
-                    Image(systemName: "hourglass")
+                if !stage.isOnline {
+                    Image(systemName: "wifi.slash")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(.orange)
                 } else {
                     Image(systemName: "dot.radiowaves.left.and.right")
                         .font(.system(size: 12, weight: .semibold))
@@ -140,7 +140,7 @@ struct PhonePage: View {
     }
 
     private var emptySetlist: some View {
-        Text(stage.micActive ? "En écoute — le premier match arrive…"
+        Text(stage.micActive ? "En écoute, le premier morceau arrive…"
                              : "Appuie sur Écouter et joue un morceau.")
             .font(Theme.Font.body(13))
             .foregroundStyle(.white.opacity(0.6))

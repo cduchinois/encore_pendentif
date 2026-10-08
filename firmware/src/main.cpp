@@ -1,26 +1,20 @@
 // Encore pendant firmware — XIAO ESP32-S3 Sense
-// Capture PDM mic -> UDP audio frames to the iPhone hotspot; touch gestures;
-// WS2812B ambiance LED driven by CMD_LED. Protocol: contracts/pendant_protocol.md (v1).
+// Capture PDM mic -> μ-law audio notifications over BLE to the iPhone; touch
+// gestures; WS2812B ambiance LED driven by CMD_LED writes.
+// Protocol: contracts/pendant_protocol.md (v2, BLE).
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
+#include <NimBLEDevice.h>
 #include <driver/i2s.h>
 #include <driver/touch_sensor.h>
 #include <Adafruit_NeoPixel.h>
 
-#if !__has_include("secrets.h")
-#error "Create firmware/src/secrets.h from secrets.h.example (hotspot credentials)"
-#endif
-#include "secrets.h"
-
-// ---------- protocol v1 ----------
-#ifndef ENCORE_PHONE_IP                            // override in secrets.h to stream to a Mac for tests
-#define ENCORE_PHONE_IP "172.20.10.1"              // iPhone hotspot gateway, always this IP
-#endif
-static const char*    PHONE_IP = ENCORE_PHONE_IP;
-static const uint16_t PORT     = 7777;
+// ---------- protocol v2 ----------
+static const char* SERVICE_UUID = "3cfbca53-0d19-4150-acd2-be1d3f437c06";
+static const char* TX_UUID      = "a162065a-4a0f-4fe9-b1b6-eebf575e7b88";  // notify
+static const char* RX_UUID      = "ea5ddf58-2e12-4cbe-934e-18d24a0a6cb4";  // write
+static const int   PKT_SAMPLES  = 160;             // 10 ms of μ-law per AUDIO_ULAW packet
 enum : uint8_t {
-  MSG_AUDIO = 0x01, MSG_EVENT = 0x02, MSG_HEARTBEAT = 0x03, MSG_CMD_LED = 0x10,
+  MSG_EVENT = 0x02, MSG_HEARTBEAT = 0x03, MSG_AUDIO_ULAW = 0x04, MSG_CMD_LED = 0x10,
   EV_PIN = 1, EV_PRIVACY_ON = 2, EV_PRIVACY_OFF = 3,
   LED_OFF = 0, LED_SOLID = 1, LED_PULSE = 2, LED_FLASH_ONCE = 3,
 };
@@ -29,7 +23,7 @@ enum : uint8_t {
 static const int PDM_CLK = 42;                     // Sense on-board PDM mic
 static const int PDM_DATA = 41;
 static const int SAMPLE_RATE = 16000;
-static const int FRAME_SAMPLES = 320;              // 20 ms
+static const int FRAME_SAMPLES = 320;              // 20 ms per I2S read = 2 packets
 static const int PIN_TOUCH = T1;                   // copper pad on GPIO1
 static const int PIN_LED   = 2;                    // WS2812B data
 static const int PIN_VBAT  = A2;                   // GPIO3/D2 — 2x220k divider from BAT+
@@ -45,10 +39,12 @@ static const uint32_t DOUBLE_TAP_MS = 400;
 static const uint32_t LONG_PRESS_MS = 1200;
 
 Adafruit_NeoPixel led(1, PIN_LED, NEO_GRB + NEO_KHZ800);
-WiFiUDP udp;
+NimBLEServer* bleServer = nullptr;
+NimBLECharacteristic* txChar = nullptr;
+volatile bool subscribed = false;                  // phone listens to TX = stream audio
 uint16_t seq = 0;
 bool privacyMode = false;
-uint32_t sendOk = 0, sendFail = 0;                 // per-5s-window UDP send stats
+uint32_t sendOk = 0, sendFail = 0;                 // per-5s-window notify stats
 
 // ambiance state set by CMD_LED; flash overlays it briefly
 uint8_t ambMode = LED_OFF, ambR = 0, ambG = 0, ambB = 0;
@@ -78,20 +74,40 @@ bool setupMic() {
   return true;
 }
 
-void sendAudioFrame(int16_t* pcm) {
-  uint8_t pkt[1 + 2 + 4 + FRAME_SAMPLES * 2];
-  pkt[0] = MSG_AUDIO;
-  memcpy(pkt + 1, &seq, 2); seq++;
-  uint32_t ts = millis(); memcpy(pkt + 3, &ts, 4);
-  memcpy(pkt + 7, pcm, FRAME_SAMPLES * 2);
-  udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt));
-  if (udp.endPacket()) sendOk++; else sendFail++;
+// G.711 μ-law, bit-identical to pipeline/tools/pendant_codec.py (tested there).
+uint8_t ulawEncode(int16_t pcm) {
+  const int BIAS = 0x84, CLIP = 32635;
+  int s = pcm;
+  uint8_t sign = 0;
+  if (s < 0) { sign = 0x80; s = -s; }
+  if (s > CLIP) s = CLIP;
+  s += BIAS;
+  int exponent = 7;
+  for (int mask = 0x4000; exponent > 0 && !(s & mask); mask >>= 1) exponent--;
+  int mantissa = (s >> (exponent + 3)) & 0x0F;
+  return ~(sign | (exponent << 4) | mantissa);
+}
+
+bool notify(const uint8_t* pkt, size_t len) {
+  if (!subscribed) return false;
+  return txChar->notify(pkt, len);
+}
+
+// One 20 ms I2S read -> two 10 ms AUDIO_ULAW packets (163 bytes, fits iOS's default MTU).
+void sendAudioFrame(const int16_t* pcm) {
+  uint8_t pkt[3 + PKT_SAMPLES];
+  pkt[0] = MSG_AUDIO_ULAW;
+  for (int half = 0; half < FRAME_SAMPLES / PKT_SAMPLES; half++) {
+    memcpy(pkt + 1, &seq, 2); seq++;
+    for (int i = 0; i < PKT_SAMPLES; i++) pkt[3 + i] = ulawEncode(pcm[half * PKT_SAMPLES + i]);
+    if (notify(pkt, sizeof(pkt))) sendOk++; else sendFail++;
+  }
 }
 
 void sendEvent(uint8_t code) {
   uint8_t pkt[6]; pkt[0] = MSG_EVENT;
   uint32_t ts = millis(); memcpy(pkt + 1, &ts, 4); pkt[5] = code;
-  udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt)); udp.endPacket();
+  notify(pkt, sizeof(pkt));
 }
 
 uint32_t batteryMilliVolts() {
@@ -109,8 +125,8 @@ uint8_t batteryPct() {
 }
 
 void sendHeartbeat() {
-  uint8_t pkt[3] = { MSG_HEARTBEAT, batteryPct(), (uint8_t)(int8_t)WiFi.RSSI() };
-  udp.beginPacket(PHONE_IP, PORT); udp.write(pkt, sizeof(pkt)); udp.endPacket();
+  uint8_t pkt[3] = { MSG_HEARTBEAT, batteryPct(), 0 };   // rssi: the phone measures it
+  notify(pkt, sizeof(pkt));
 #if TOUCH_DEBUG
   Serial.printf("battery %u%% (%lu mV)\n", pkt[1], (unsigned long)batteryMilliVolts());
 #endif
@@ -121,15 +137,62 @@ void startFlash(uint8_t r, uint8_t g, uint8_t b) {
   flashUntil = millis() + 300;
 }
 
-void pollUdp() {
-  int len = udp.parsePacket();
-  if (len <= 0) return;
-  uint8_t pkt[8];
-  len = udp.read(pkt, sizeof(pkt));
-  if (len == 5 && pkt[0] == MSG_CMD_LED) {
-    if (pkt[1] == LED_FLASH_ONCE) startFlash(pkt[2], pkt[3], pkt[4]);
-    else { ambMode = pkt[1]; ambR = pkt[2]; ambG = pkt[3]; ambB = pkt[4]; }
+void setIdleLed() { ambMode = LED_PULSE; ambR = 0; ambG = 0; ambB = 40; }  // blue = waiting for the app
+
+// ---------- BLE ----------
+class ServerCallbacks : public NimBLEServerCallbacks {
+  void onConnect(NimBLEServer* s, NimBLEConnInfo& info) override {
+    // 15-30 ms interval, no latency, 4 s timeout: inside Apple's accessory rules.
+    s->updateConnParams(info.getConnHandle(), 12, 24, 0, 400);
+    Serial.printf("ble connected %s\n", info.getAddress().toString().c_str());
   }
+  void onDisconnect(NimBLEServer* s, NimBLEConnInfo& info, int reason) override {
+    subscribed = false;
+    setIdleLed();
+    Serial.printf("ble disconnected (reason %d), advertising\n", reason);
+    NimBLEDevice::startAdvertising();
+  }
+  void onMTUChange(uint16_t mtu, NimBLEConnInfo& info) override {
+    Serial.printf("ble mtu %u\n", mtu);
+  }
+};
+
+class TxCallbacks : public NimBLECharacteristicCallbacks {
+  void onSubscribe(NimBLECharacteristic* c, NimBLEConnInfo& info, uint16_t subValue) override {
+    subscribed = (subValue & 0x0001) != 0;         // bit 0 = notifications
+    Serial.printf("ble %s\n", subscribed ? "subscribed, streaming" : "unsubscribed");
+  }
+};
+
+class RxCallbacks : public NimBLECharacteristicCallbacks {
+  void onWrite(NimBLECharacteristic* c, NimBLEConnInfo& info) override {
+    NimBLEAttValue v = c->getValue();
+    const uint8_t* pkt = v.data();
+    if (v.size() == 5 && pkt[0] == MSG_CMD_LED) {
+      if (pkt[1] == LED_FLASH_ONCE) startFlash(pkt[2], pkt[3], pkt[4]);
+      else { ambMode = pkt[1]; ambR = pkt[2]; ambG = pkt[3]; ambB = pkt[4]; }
+    }
+  }
+};
+
+void setupBle() {
+  NimBLEDevice::init("Encore");
+  NimBLEDevice::setMTU(247);
+  bleServer = NimBLEDevice::createServer();
+  bleServer->setCallbacks(new ServerCallbacks());
+  NimBLEService* svc = bleServer->createService(SERVICE_UUID);
+  txChar = svc->createCharacteristic(TX_UUID, NIMBLE_PROPERTY::NOTIFY);
+  txChar->setCallbacks(new TxCallbacks());
+  NimBLECharacteristic* rx = svc->createCharacteristic(
+      RX_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
+  rx->setCallbacks(new RxCallbacks());
+  svc->start();
+  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
+  adv->addServiceUUID(SERVICE_UUID);
+  adv->setName("Encore");
+  adv->enableScanResponse(true);
+  adv->start();
+  Serial.println("ble advertising as \"Encore\"");
 }
 
 void renderLed() {
@@ -212,49 +275,16 @@ void pollTouch() {
   }
 }
 
-void connectWifi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);                            // modem sleep causes UDP jitter
-  WiFi.begin(ENCORE_WIFI_SSID, ENCORE_WIFI_PASS);
-  Serial.printf("connecting to \"%s\"", ENCORE_WIFI_SSID);
-  uint32_t start = millis();
-  bool scanned = false;
-  while (WiFi.status() != WL_CONNECTED) {
-    if (!scanned && millis() - start > 15000) {
-      scanned = true;
-      Serial.println("\nstill not connected — 2.4 GHz networks I can actually see:");
-      WiFi.disconnect();
-      int n = WiFi.scanNetworks();
-      for (int i = 0; i < n; i++)
-        Serial.printf("  \"%s\" (%d dBm)\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i));
-      if (n <= 0) Serial.println("  (none — hotspot page closed, or 5 GHz only)");
-      Serial.println("compare character-for-character with ENCORE_WIFI_SSID in secrets.h");
-      WiFi.scanDelete();
-      WiFi.begin(ENCORE_WIFI_SSID, ENCORE_WIFI_PASS);
-      Serial.print("retrying");
-    }
-    // blue blink while connecting, red after 20 s (wrong creds / hotspot off / 5 GHz)
-    bool late = millis() - start > 20000;
-    led.setPixelColor(0, (millis() / 250) % 2 ? led.Color(late ? 60 : 0, 0, late ? 0 : 60) : 0);
-    led.show();
-    delay(200); Serial.print(".");
-  }
-  Serial.printf("\nwifi ok — pendant ip %s, rssi %d dBm\n",
-                WiFi.localIP().toString().c_str(), WiFi.RSSI());
-  Serial.printf("streaming AUDIO -> %s:%u (16 kHz mono, 20 ms frames)\n", PHONE_IP, PORT);
-}
-
 void setup() {
   Serial.begin(115200);
   led.begin();
-  connectWifi();
-  udp.begin(PORT);                                 // also our receive port for CMD_LED
+  setupBle();
   micOk = setupMic();
   if (!micOk) Serial.println("running WITHOUT audio (touch/LED/heartbeat still up)");
   calibrateTouch();
   Serial.printf("touch baseline %lu\n", (unsigned long)touchBaseline);
   Serial.println("ready — double tap = PIN, long press = privacy toggle");
-  ambMode = LED_PULSE; ambR = 0; ambG = 0; ambB = 40; // idle blue until the app takes over
+  setIdleLed();                                    // idle blue until the app takes over
 }
 
 void loop() {
@@ -264,31 +294,16 @@ void loop() {
   size_t got = 0;
   if (micOk) i2s_read(I2S_NUM_0, pcm, sizeof(pcm), &got, portMAX_DELAY);  // paces the loop at 20 ms
   else delay(20);
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("wifi lost, reconnecting");
-    connectWifi();
-  }
-  if (micOk && !privacyMode && got == sizeof(pcm)) sendAudioFrame(pcm);
+  if (micOk && subscribed && !privacyMode && got == sizeof(pcm)) sendAudioFrame(pcm);
 
   pollTouch();
-  pollUdp();
   if (millis() - lastHb >= 5000) {
     lastHb = millis();
     sendHeartbeat();
     // Self-diagnosis: one status line per window beats catching the boot log.
-    Serial.printf("net: ip=%s -> %s:%u rssi=%d ok=%lu fail=%lu\n",
-                  WiFi.localIP().toString().c_str(), PHONE_IP, PORT,
-                  WiFi.RSSI(), (unsigned long)sendOk, (unsigned long)sendFail);
-    // 3 windows of 100% failure (ARP dead / stale association) -> reassociate.
-    static uint8_t badWindows = 0;
-    if (sendFail > 0 && sendOk == 0) {
-      if (++badWindows >= 3) {
-        badWindows = 0;
-        Serial.println("all sends failing — reassociating WiFi");
-        WiFi.disconnect();
-        connectWifi();
-      }
-    } else badWindows = 0;
+    // ~500 ok per window while streaming; failures = BLE buffers full (phone too slow).
+    Serial.printf("ble: %s ok=%lu fail=%lu\n", subscribed ? "streaming" : "waiting",
+                  (unsigned long)sendOk, (unsigned long)sendFail);
     sendOk = sendFail = 0;
   }
   renderLed();

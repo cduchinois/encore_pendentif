@@ -303,48 +303,17 @@ private struct TimelineTrackRow: View {
     }
 
     private var trackCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(track.title)
-                .font(Theme.Font.body(15, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text(track.artist)
-                .font(Theme.Font.body(13))
-                .foregroundStyle(.white.opacity(0.72))
-                .lineLimit(1)
-
-            if metaLine.isEmpty == false {
-                Text(metaLine)
-                    .font(Theme.Font.label(11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .lineLimit(1)
-                    .padding(.top, 2)
+        HStack(alignment: .top, spacing: 12) {
+            if let url = track.artworkURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color.white.opacity(0.08)
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
-
-            // Unknown-track enrichment (Gemma ID card): description, heard
-            // lyrics, and the captured excerpt.
-            if let detail = track.detail {
-                Text(detail)
-                    .font(Theme.Font.body(12))
-                    .foregroundStyle(.white.opacity(0.65))
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 4)
-            }
-            if let lyrics = track.lyrics, !lyrics.isEmpty {
-                Text("« \(lyrics) »")
-                    .font(Theme.Font.body(12).italic())
-                    .foregroundStyle(.white.opacity(0.55))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
-            }
-            if let clipURL = track.clipURL {
-                PlayClipButton(url: clipURL)
-                    .padding(.top, 6)
-            }
+            trackText
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -365,6 +334,30 @@ private struct TimelineTrackRow: View {
                 AuroraBorder(cornerRadius: Theme.Radius.card)
             }
         }
+    }
+
+    private var trackText: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(track.title)
+                .font(Theme.Font.body(15, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(track.artist)
+                .font(Theme.Font.body(13))
+                .foregroundStyle(.white.opacity(0.72))
+                .lineLimit(1)
+
+            if metaLine.isEmpty == false {
+                Text(metaLine)
+                    .font(Theme.Font.label(11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+                    .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// Meta line: "126 BPM · 5:20" — gracefully omits missing fields.

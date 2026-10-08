@@ -3,3 +3,4 @@ librosa>=0.10
 numpy
 pytest
 jsonschema
+bleak            # tools/ble_listen.py, pendant BLE smoke test

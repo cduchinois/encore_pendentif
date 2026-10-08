@@ -2,8 +2,8 @@
 //  Encore
 //
 //  "Pendant" page, same design language as DemoPage:
-//  - "CAPTURE VIBE" card = the summary card, fed by the real pendant stream
-//    (waveform + connection/battery/loss stats)
+//  - "CAPTURE VIBE" card = the summary card, fed by the pendant's BLE stream
+//    (waveform + connection/battery/packet stats)
 //  - the setlist timeline = SetlistTimeline, fed by the journal's
 //    track_match events instead of demo data.
 
@@ -11,7 +11,7 @@ import SwiftUI
 
 struct PendantPage: View {
     @ObservedObject var stage: RecognitionStage
-    @ObservedObject var receiver: UDPAudioReceiver
+    @ObservedObject var receiver: PendantBLEClient
     @ObservedObject var pipeline: CapturePipeline
     @ObservedObject var journal: SessionStore
 
@@ -41,7 +41,7 @@ struct PendantPage: View {
                         emptySetlist
                     } else {
                         SetlistTimeline(tracks: journal.playlistTracks) { track in
-                            pipeline.pin(trackID: track.catalogID)
+                            pipeline.pin(track.track)
                         }
                     }
                 }
@@ -78,13 +78,21 @@ struct PendantPage: View {
     private var headerSubtitle: String {
         let date = journal.startedAt.formatted(date: .abbreviated, time: .shortened)
         if stage.privacy { return "\(date) · privacy" }
-        return connected ? "\(date) · en direct" : "\(date) · pendentif en attente"
+        switch receiver.state {
+        case .off: return "\(date) · Bluetooth désactivé"
+        case .unauthorized: return "\(date) · Bluetooth non autorisé"
+        case .scanning: return "\(date) · recherche du pendentif"
+        case .connecting: return "\(date) · connexion au pendentif"
+        case .connected:
+            if !stage.isOnline { return "\(date) · hors ligne, Shazam en pause" }
+            return connected ? "\(date) · en direct" : "\(date) · pendentif connecté"
+        }
     }
 
     // MARK: Capture vibe card (mirror of DemoPage's summary card)
 
     private var connected: Bool {
-        guard let t = receiver.lastPacketAt else { return false }
+        guard receiver.state == .connected, let t = receiver.lastPacketAt else { return false }
         return Date().timeIntervalSince(t) < 8
     }
 
@@ -103,10 +111,10 @@ struct PendantPage: View {
                     Image(systemName: "hand.raised.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.orange)
-                } else if !stage.matcherReady {
-                    Image(systemName: "hourglass")
+                } else if !stage.isOnline {
+                    Image(systemName: "wifi.slash")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(.orange)
                 } else {
                     Image(systemName: "dot.radiowaves.left.and.right")
                         .font(.system(size: 12, weight: .semibold))
@@ -120,7 +128,7 @@ struct PendantPage: View {
             HStack(spacing: 0) {
                 summaryStat(value: "\(journal.playlistTracks.count)", label: "tracks")
                 statDivider
-                summaryStat(value: "\(receiver.framesPerSecond)", label: "fps")
+                summaryStat(value: "\(receiver.framesPerSecond)", label: "pkt/s")
                 statDivider
                 summaryStat(value: receiver.batteryPct >= 0 ? "\(receiver.batteryPct)%" : "--",
                             label: "battery")
@@ -171,8 +179,10 @@ struct PendantPage: View {
     }
 
     private var emptySetlist: some View {
-        Text(connected ? "En écoute — le premier match arrive…"
-                       : "Allume le pendentif pour commencer la capture.")
+        Text(connected ? "En écoute, le premier morceau arrive…"
+                       : receiver.state == .unauthorized
+                         ? "Autorise le Bluetooth pour Encore dans Réglages."
+                         : "Allume le pendentif pour commencer la capture.")
             .font(Theme.Font.body(13))
             .foregroundStyle(.white.opacity(0.6))
             .frame(maxWidth: .infinity, alignment: .leading)

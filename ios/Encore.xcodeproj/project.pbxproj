@@ -256,8 +256,9 @@
 				DEVELOPMENT_TEAM = V59Z4VGX23;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Encore;
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Encore receives audio from your pendant over the hotspot network.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Encore connects to your pendant over Bluetooth to hear the music around you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Listen mode recognizes tracks through the iPhone microphone when no pendant is around.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -293,8 +294,9 @@
 				DEVELOPMENT_TEAM = V59Z4VGX23;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Encore;
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Encore receives audio from your pendant over the hotspot network.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Encore connects to your pendant over Bluetooth to hear the music around you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Listen mode recognizes tracks through the iPhone microphone when no pendant is around.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

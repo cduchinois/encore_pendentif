@@ -17,13 +17,11 @@ struct PlaylistTrack: Identifiable, Hashable {
     var isPinned: Bool = false
     /// When true, the timeline dot renders with a "live" pulsing sonar animation.
     var isPlaying: Bool = false
-    /// catalog.sqlite id for live rows (nil for demo data and unknown tracks);
-    /// used by tap-to-pin.
-    var catalogID: Int? = nil
-    /// Unknown-track enrichment from the Gemma ID card.
-    var detail: String? = nil          // one-sentence description
-    var lyrics: String? = nil          // heard lyrics snippet
-    var clipURL: URL? = nil            // captured excerpt, playable in the row
+    /// The Shazam match behind a live row (nil for demo data and unknown
+    /// tracks); used by tap-to-pin and for the artwork.
+    var track: MatchedTrack? = nil
+
+    var artworkURL: URL? { track?.artwork_url.flatMap(URL.init(string:)) }
 }
 
 enum PlaylistDemoData {

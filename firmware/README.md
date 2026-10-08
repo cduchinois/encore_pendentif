@@ -1,75 +1,57 @@
-# firmware/ — the pendant (XIAO ESP32-S3 Sense)
+# firmware/ — the pendant (XIAO ESP32-S3 Sense), MVP branch
 
-[← Main README](../README.md) · Protocol: [contracts/pendant_protocol.md](../contracts/pendant_protocol.md) · Wiring: [hardware/wiring.md](../hardware/wiring.md) · Owner: firmware-dev agent
+[← Main README](../README.md) · Protocol: [contracts/pendant_protocol.md](../contracts/pendant_protocol.md) (v2, BLE) · Wiring: [hardware/wiring.md](../hardware/wiring.md) · Owner: firmware-dev agent
 
-The pendant is a **smart microphone, nothing more** (decision log: nothing pendant-sized runs Gemma E2B). It captures PDM audio, streams 20 ms frames over UDP to the iPhone hotspot, reports touch gestures, and drives one WS2812B LED. All packet formats come from the protocol contract — keep them in sync.
+The pendant is a **smart Bluetooth microphone, nothing more**. It captures PDM audio, streams it as μ-law over BLE notifications to the iPhone, reports touch gestures, and drives one WS2812B LED. All packet formats come from the protocol contract; keep them in sync.
 
 ## How it works
 
-- **Capture**: on-board PDM mic (CLK=GPIO42, DATA=GPIO41) via I2S at 16 kHz mono, 320-sample (20 ms) frames.
-- **Streaming**: each frame is packed as an `AUDIO` packet (`0x01` + seq + ts_ms + PCM, 647 bytes) and fired at the iPhone hotspot gateway (`172.20.10.1:7777`), no acks — loss tolerance is built into recognition.
-- **Touch** (copper pad → GPIO1/T1): double tap (~400 ms window) = pin → `EVENT` code 1; long press (>1.2 s) = privacy toggle → `EVENT` 2/3. Privacy mode stops all audio; only heartbeats continue.
-- **LED** (WS2812B on GPIO2): ambiance color / pulse / white flash on pin, driven by incoming `CMD_LED` (`0x10`) packets from the phone. Privacy = LED off, unambiguous.
-- **Heartbeat**: battery % + RSSI every 5 s.
+- **Capture**: on-board PDM mic (CLK=GPIO42, DATA=GPIO41) via I2S at 16 kHz mono, 320-sample (20 ms) reads.
+- **Streaming**: each read becomes two `AUDIO_ULAW` packets (`0x04` + seq + 160 μ-law bytes = 163 bytes, 10 ms each, 100 packets/s, 16 kB/s), sent as notifications on the TX characteristic. Audio flows only while the phone is subscribed.
+- **BLE**: NimBLE-Arduino peripheral named `Encore`, advertises the Encore service, asks the iPhone for a 15 to 30 ms connection interval, re-advertises on disconnect. No WiFi, no credentials.
+- **Touch** (copper pad → GPIO1/T1): double tap (~400 ms window) = pin → `EVENT` code 1. Long press privacy is compiled out (`PRIVACY_GESTURE 0`).
+- **LED** (WS2812B on GPIO2): blue pulse = waiting for the phone; the app switches it to a green pulse when it listens and flashes it purple on each recognised song; white flash on pin.
+- **Heartbeat**: battery % every 5 s (RSSI is read by the phone).
 
 ## Build & flash
-
-First time on a new machine:
 
 ```bash
 pip install platformio                      # or the VSCode PlatformIO extension
 cd firmware
-cp src/secrets.h.example src/secrets.h      # then fill in the hotspot SSID/password
+pio run                # compile only (fetches NimBLE-Arduino the first time)
+pio run -t upload      # compile + flash, XIAO plugged in over USB-C
+pio device monitor     # serial console, 115200 baud
 ```
 
-`secrets.h` is gitignored — credentials never land in git.
+If upload fails ("failed to connect"): hold **BOOT**, press **RESET**, release RESET, release BOOT, then upload again.
 
-Every flash:
-
-```bash
-cd firmware
-pio run                # compile only (optional sanity check)
-pio run -t upload      # compile + flash, XIAO plugged in over USB-C, port auto-detected
-pio device monitor     # serial console, 115200 baud (Ctrl+C to quit)
-```
-
-If upload fails ("failed to connect"): hold **BOOT**, press **RESET**, release RESET, release BOOT, then `pio run -t upload` again. Same esptool underneath as `idf.py flash`.
-
-Expected boot log on the monitor:
+Expected log:
 
 ```
-connecting to "encore-hotspot"......
-wifi ok — pendant ip 172.20.10.2, rssi -48 dBm
-streaming AUDIO -> 172.20.10.1:7777 (16 kHz mono, 20 ms frames)
+ble advertising as "Encore"
 touch baseline 24817
 ready — double tap = PIN, long press = privacy toggle
+ble: waiting ok=0 fail=0
+ble connected 4a:...
+ble mtu 185
+ble subscribed, streaming
+ble: streaming ok=500 fail=0
 ```
 
-Endless dots + blinking blue→red LED = can't join the hotspot: check it's ON, creds match `secrets.h`, and **"Maximize Compatibility" is enabled** on the iPhone (the XIAO is 2.4 GHz only).
+`ok` ≈ 500 per 5 s window is the full stream. Steady `fail` counts mean the phone drains notifications too slowly (check the connection interval, distance, 2.4 GHz congestion).
 
-Validate streaming with a quick Python UDP listener before touching the app (that's the plan's "BIGGEST RISK — do this first"):
-
-```bash
-python3 -c "
-import socket
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(('0.0.0.0', 7777))
-while True:
-    d, a = s.recvfrom(2048)
-    print(f'{a[0]} type=0x{d[0]:02x} len={len(d)}')"
-```
-
-(Run it on a Mac on the same hotspot; point `PHONE_IP` at the Mac's IP temporarily, or just trust the phone path.)
+Validate the stream from a Mac before touching the app (PRD step 3): `pip install bleak && python3 pipeline/tools/ble_listen.py --seconds 60`, then play `capture.wav` to the Shazam app.
 
 ## Status
 
-**Working** (`src/main.cpp`): mic capture at 16 kHz → AUDIO frames over UDP, touch gestures (double tap = PIN, long press = privacy toggle), CMD_LED receive path (solid/pulse/flash-once), HEARTBEAT every 5 s (RSSI real, battery stubbed at 100), `WiFi.setSleep(false)`, auto-reconnect on WiFi loss, boot log with IP.
+**Written, not yet validated on hardware** (the build environment that wrote it could not download the ESP32 toolchain): BLE peripheral (NimBLE-Arduino 2.x API), μ-law encoder (bit-identical to `pipeline/tools/pendant_codec.py`, checked exhaustively on host), subscription-gated streaming, CMD_LED writes. Unchanged from the hackathon and proven: mic capture, touch gestures, LED rendering, battery reading.
 
 **Battery gauge**: solder two equal resistors (100k–470k, e.g. 2×220k) in series from BAT+ to GND, midpoint to **D2 (GPIO3)**. The firmware auto-detects the divider (reading < 2.5 V = not wired → reports 100%) and maps 3.3–4.2 V to 0–100%. Note: on USB power the charger holds BAT+ high, so ~100% while plugged is normal — the true reading needs battery power.
 
 **TODO**:
-- [ ] Tune `touchBaseline` threshold on the real copper pad (baseline is auto-calibrated at boot; factor is 1.5×).
-- [ ] Host-side `pio test`: frame pack/unpack round-trip against the protocol doc (see `test/README.md` — keep protocol logic in pure functions).
+- [ ] First `pio run` + flash; fix any NimBLE API drift.
+- [ ] Measure battery life over 1 h of streaming (BLE should beat the WiFi build by a wide margin).
 
 ## Hardware notes
 
-Pins match [hardware/wiring.md](../hardware/wiring.md). Power: LiPo 500–600 mAh on the BAT pads (on-board charging) or a mini USB-C power bank inside the case. Battery target: survive 1 h of streaming (test plan).
+Pins match [hardware/wiring.md](../hardware/wiring.md). Power: LiPo 500–600 mAh on the BAT pads (on-board charging) or a mini USB-C power bank inside the case. Battery target: survive a full night of streaming.

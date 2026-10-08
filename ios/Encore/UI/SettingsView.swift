@@ -1,14 +1,15 @@
 //  SettingsView.swift
 //  Encore
 //
-//  Settings tab. One setting for now: pick a photo that replaces the bundled
-//  background image across the whole app (EncoreBackground reads it live).
+//  Settings tab: the pendant's BLE link (status, forget) and a photo that
+//  replaces the bundled background image across the whole app.
 
 import SwiftUI
 import PhotosUI
 
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject var receiver: PendantBLEClient
     @State private var pickerItem: PhotosPickerItem?
 
     var body: some View {
@@ -20,9 +21,9 @@ struct SettingsView: View {
                     header
                         .padding(.bottom, 4)
 
-                    backgroundCard
+                    pendantCard
 
-                    gemmaCard
+                    backgroundCard
                 }
                 .padding(.horizontal, Theme.Space.screenH)
                 .padding(.top, Theme.Space.screenTop)
@@ -114,54 +115,56 @@ struct SettingsView: View {
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 32))
     }
 
-    // MARK: Gemma card — backend for the unknown-track ID cards
+    // MARK: Pendant card — the BLE link
 
-    private var gemmaCard: some View {
+    private var pendantCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                Image(systemName: "sparkles")
+                Image(systemName: "dot.radiowaves.left.and.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.9))
-                Text("GEMMA · ID CARDS")
+                Text("PENDENTIF")
                     .font(Theme.Font.label(11, weight: .heavy))
                     .tracking(1.4)
                     .foregroundStyle(.white.opacity(0.85))
                 Spacer(minLength: 0)
+                Text(pendantStatus)
+                    .font(Theme.Font.label(10, weight: .semibold))
+                    .foregroundStyle(receiver.state == .connected ? Theme.Palette.accentGreen
+                                                                  : .white.opacity(0.6))
             }
 
-            Picker("Backend", selection: $settings.gemmaBackendRaw) {
-                Text("Off").tag(GemmaBackend.off.rawValue)
-                Text("Mac (llama-server)").tag(GemmaBackend.llamaServer.rawValue)
-                Text("Cloud (Gemini)").tag(GemmaBackend.geminiAPI.rawValue)
-            }
-            .pickerStyle(.segmented)
+            Text("Le pendentif se connecte en Bluetooth et se reconnecte tout seul. "
+                 + "Oublie-le pour en associer un autre.")
+                .font(Theme.Font.label(11))
+                .foregroundStyle(.white.opacity(0.55))
 
-            if settings.gemmaBackend == .llamaServer {
-                TextField("http://172.20.10.2:8080", text: $settings.gemmaServerURL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .font(Theme.Font.body(14))
-                    .padding(10)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
-                Text("Le Mac qui fait tourner llama-server, sur le même hotspot.")
-                    .font(Theme.Font.label(11))
-                    .foregroundStyle(.white.opacity(0.55))
+            Button {
+                receiver.forget()
+            } label: {
+                Text("Oublier ce pendentif")
+                    .font(Theme.Font.label(13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
             }
-            if settings.gemmaBackend == .geminiAPI {
-                SecureField("Clé API Gemini", text: $settings.geminiKey)
-                    .font(Theme.Font.body(14))
-                    .padding(10)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
-                Text("aistudio.google.com/apikey — stockée sur l'appareil uniquement.")
-                    .font(Theme.Font.label(11))
-                    .foregroundStyle(.white.opacity(0.55))
-            }
+            .glassEffect(.clear.interactive(),
+                         in: RoundedRectangle(cornerRadius: Theme.Radius.action, style: .continuous))
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 32))
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 32))
+    }
+
+    private var pendantStatus: String {
+        switch receiver.state {
+        case .off: return "bluetooth off"
+        case .unauthorized: return "non autorisé"
+        case .scanning: return "recherche…"
+        case .connecting: return "connexion…"
+        case .connected: return receiver.pendantName ?? "connecté"
+        }
     }
 
     private var preview: some View {
