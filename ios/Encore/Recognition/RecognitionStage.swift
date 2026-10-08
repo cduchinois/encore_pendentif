@@ -29,8 +29,11 @@ final class RecognitionStage: ObservableObject {
     private let pathMonitor = NWPathMonitor()
     private let onlineLock = NSLock()
     private var onlineNow = true
+    private var started = false
 
     func start() {
+        guard !started else { return }
+        started = true
         pendant.attach(format: format)
         phone.attach(format: format)
 

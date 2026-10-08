@@ -149,8 +149,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
   void onDisconnect(NimBLEServer* s, NimBLEConnInfo& info, int reason) override {
     subscribed = false;
     setIdleLed();
-    Serial.printf("ble disconnected (reason %d), advertising\n", reason);
-    NimBLEDevice::startAdvertising();
+    Serial.printf("ble disconnected (reason %d), advertising\n", reason);  // NimBLE restarts it
   }
   void onMTUChange(uint16_t mtu, NimBLEConnInfo& info) override {
     Serial.printf("ble mtu %u\n", mtu);

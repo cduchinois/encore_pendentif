@@ -13,7 +13,7 @@ All multi-byte ints little-endian.
 | RX (phone -> pendant) | `ea5ddf58-2e12-4cbe-934e-18d24a0a6cb4` | write, write without response |
 
 Every TX notification and every RX write is exactly one packet; byte 0 is the type.
-Largest packet is 163 bytes, so it fits the default iOS ATT MTU (185) without negotiation.
+Largest packet is 163 bytes, so it fits the ATT MTU iOS (and bleak on macOS) negotiates at connect (185, payload 182). A central that stays at the BLE default MTU of 23 would get truncated packets.
 
 ## Pendant -> phone (TX notify)
 | type | payload | notes |

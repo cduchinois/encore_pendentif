@@ -59,6 +59,8 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
     private var rmsAcc: Float = 0
     private var rmsPackets = 0
     private var fpsTimer: Timer?
+    /// Set by forget(): skip the remembered/connected pendant, scan for a new one.
+    private var forgottenID: UUID? = nil
 
     private static let knownPendantKey = "pendant_peripheral_id"
     private static let restoreID = "encore.pendant.central"
@@ -85,11 +87,16 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
     /// Drop the remembered pendant and look for any Encore pendant again.
     func forget() {
         UserDefaults.standard.removeObject(forKey: Self.knownPendantKey)
+        forgottenID = peripheral?.identifier
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
         peripheral = nil
         rxChar = nil
         pendantName = nil
-        connectOrScan()
+        // Straight to scanning: the retrieve calls would hand the same
+        // pendant back while its disconnect is still in flight.
+        guard let central, central.state == .poweredOn else { return }
+        state = .scanning
+        central.scanForPeripherals(withServices: [Self.serviceUUID], options: nil)
     }
 
     /// CMD_LED 0x10: mode + RGB, 5 bytes. flashOnce overlays the ambiance for 300 ms.
@@ -111,7 +118,8 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
             peripheral = central.retrievePeripherals(withIdentifiers: [id]).first
         }
         if peripheral == nil {
-            peripheral = central.retrieveConnectedPeripherals(withServices: [Self.serviceUUID]).first
+            peripheral = central.retrieveConnectedPeripherals(withServices: [Self.serviceUUID])
+                .first { $0.identifier != forgottenID }
         }
         guard let p = peripheral else {
             state = .scanning
@@ -157,6 +165,7 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
+        guard peripheral.identifier != forgottenID else { return }
         central.stopScan()
         self.peripheral = peripheral
         peripheral.delegate = self
@@ -171,7 +180,7 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral,
                         error: Error?) {
         print("BLE connect failed: \(error?.localizedDescription ?? "?")")
-        connectOrScan()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.connectOrScan() }
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral,
@@ -235,6 +244,7 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
                 rmsAcc = 0; rmsPackets = 0
             }
             let seq = UInt16(b[1]) | (UInt16(b[2]) << 8)
+            let frame = pcm
             audioQueue.async {
                 if let last = self.lastSeq {
                     let gap = Int(seq &- last) - 1
@@ -243,7 +253,7 @@ final class PendantBLEClient: NSObject, ObservableObject, CBCentralManagerDelega
                     }
                 }
                 self.lastSeq = seq
-                self.onAudioFrame?(pcm)
+                self.onAudioFrame?(frame)
             }
         case 0x02 where b.count == 6:
             if let ev = PendantEvent(rawValue: b[5]) { onEvent?(ev) }

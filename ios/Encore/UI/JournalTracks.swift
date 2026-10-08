@@ -16,10 +16,11 @@ extension SessionStore {
     var playlistTracks: [PlaylistTrack] {
         let pinnedKeys = Set(events.filter { $0.kind == .pin }.compactMap { $0.track?.key })
         // Collapse consecutive rows of the same song: one row per continuous
-        // play. Unknown rows (track nil) collapse together the same way.
+        // play. Unknown rows stay separate: the pipeline already decides when
+        // a new unknown song starts.
         var matches: [JournalEvent] = []
         for ev in events where ev.kind == .track_match {
-            if let last = matches.last, last.track?.key == ev.track?.key { continue }
+            if let key = ev.track?.key, matches.last?.track?.key == key { continue }
             matches.append(ev)
         }
         return matches.enumerated().map { i, ev in

@@ -63,8 +63,10 @@ struct PhonePage: View {
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.30), radius: 14, y: 2)
 
-            Text(stage.micActive ? "micro iPhone · en écoute"
-                                 : "micro iPhone · sans pendentif")
+            Text(!stage.micActive ? "micro iPhone · sans pendentif"
+                 : !stage.isOnline ? "micro iPhone · hors ligne, Shazam en pause"
+                 : pipeline.matchError != nil ? "micro iPhone · Shazam indisponible"
+                 : "micro iPhone · en écoute")
                 .font(Theme.Font.body(13))
                 .foregroundStyle(.white.opacity(0.82))
                 .shadow(color: .black.opacity(0.25), radius: 6, y: 1)

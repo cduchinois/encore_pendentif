@@ -97,6 +97,6 @@ Each step has an exit gate. Do not start the next step on hardware before the ga
 | Risk | Mitigation |
 |---|---|
 | ShazamKit service not enabled / free account | Step 0 gate before any other work. |
-| BLE throughput lower than planned on some iPhones | μ-law gives 2x margin; packets are 163 bytes so they fit the default 185 byte iOS MTU. Loss is visible in the UI and in `ble_listen.py`. |
+| BLE throughput lower than planned on some iPhones | μ-law gives 2x margin; packets are 163 bytes so they fit the 185 byte MTU iOS negotiates. Loss is visible in the UI and in `ble_listen.py`. |
 | No network in the venue | Unknown rows say "pas de réseau"; offline queue is next priority. |
 | iOS kills the app in background | `bluetooth-central` background mode + CoreBluetooth state restoration. |

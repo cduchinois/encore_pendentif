@@ -6,7 +6,9 @@
 import Foundation
 
 struct PlaylistTrack: Identifiable, Hashable {
-    let id = UUID()
+    /// Position in the setlist: stable across journal re-renders, so rows
+    /// (and their artwork) are not rebuilt every time energy updates.
+    var id: Int { index }
     let index: Int
     let title: String
     let artist: String

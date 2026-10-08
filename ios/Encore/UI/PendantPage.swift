@@ -85,6 +85,7 @@ struct PendantPage: View {
         case .connecting: return "\(date) · connexion au pendentif"
         case .connected:
             if !stage.isOnline { return "\(date) · hors ligne, Shazam en pause" }
+            if pipeline.matchError != nil { return "\(date) · Shazam indisponible" }
             return connected ? "\(date) · en direct" : "\(date) · pendentif connecté"
         }
     }

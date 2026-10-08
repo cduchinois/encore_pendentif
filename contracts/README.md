@@ -14,8 +14,8 @@ GATT service with one TX notify and one RX write characteristic, one packet per 
 - Consumers: `firmware/src/main.cpp` (packing, μ-law encode), `ios/Encore/Audio/PendantBLEClient.swift` (unpacking), `pipeline/tools/pendant_codec.py` + `ble_listen.py` (reference codec, Mac smoke test).
 
 ### [`id_card.schema.json`](id_card.schema.json) — the Gemma ID card for an unknown track
-What the model must emit when the whole recognition ladder fails: genre, description, has_vocals, confidence, ts_start_ms (required) + lyrics_snippet, key, clip_ref. **`bpm` is injected from DSP (librosa), never guessed by the model** — the prompt in `ios/Encore/Gemma/prompts/id_card.md` enforces the same rule. `additionalProperties: false` keeps Gemma's structured output strict.
-- Consumers: iOS Gemma runner (output validation), `pipeline/resolve/serp_resolver.py` (input), tests.
+What the model must emit when the whole recognition ladder fails: genre, description, has_vocals, confidence, ts_start_ms (required) + lyrics_snippet, key, clip_ref. **`bpm` is injected from DSP (librosa), never guessed by the model.** Not produced by the app on the `MVP` branch (no Gemma); kept for the pipeline and `main`. `additionalProperties: false` keeps Gemma's structured output strict.
+- Consumers: `pipeline/resolve/serp_resolver.py` (input), tests. (The iOS Gemma runner exists on `main` only.)
 
 ### [`journal.schema.json`](journal.schema.json) — the record of the night
 One session = id, start/end, an `events` array (kinds: `track_match`, `id_card`, `pin`, `moment`, `transition`, `privacy_on/off`; with a `track` object for Shazam cloud matches on the MVP branch (`shazam_id`, `title`, `artist`, `isrc`, `apple_music_id`, `artwork_url`, `apple_music_url`), legacy `track_id` pointing into catalog.sqlite, `source` naming the ladder stage, `transition_style`) and an `energy` time series (0–1) for the recap curve. It `$ref`s `id_card.schema.json`.

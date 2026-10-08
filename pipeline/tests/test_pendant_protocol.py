@@ -32,7 +32,7 @@ def test_parse_packets():
     audio = bytes([0x04]) + struct.pack("<H", 513) + bytes([0xFF] * pc.AUDIO_SAMPLES)
     kind, f = pc.parse(audio)
     assert kind == "audio" and f["seq"] == 513 and f["pcm"] == [0] * pc.AUDIO_SAMPLES
-    assert len(audio) <= 182, "must fit the default iOS ATT MTU (185 - 3)"
+    assert len(audio) <= 182, "must fit the ATT MTU iOS negotiates (185 - 3)"
     assert pc.parse(bytes([0x02]) + struct.pack("<IB", 1234, 1)) == (
         "event", {"ts_ms": 1234, "code": 1, "name": "PIN"})
     assert pc.parse(bytes([0x03, 87, 0])) == ("heartbeat", {"battery_pct": 87, "rssi": 0})

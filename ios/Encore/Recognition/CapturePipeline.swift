@@ -14,6 +14,9 @@ import ShazamKit
 final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
     @Published var currentTrack: MatchedTrack? = nil
     @Published var isMusic = false
+    /// Last ShazamKit failure (auth, App Service not enabled, network), nil
+    /// after a successful match. Shown in the page header.
+    @Published var matchError: String? = nil
 
     let journal = SessionStore()
     /// Fired on a confirmed NEW track (used for the pendant LED flash).
@@ -117,12 +120,21 @@ final class CapturePipeline: NSObject, ObservableObject, SHSessionDelegate {
         journal.append(.track_match, track: track, source: .world_catalog)
         if wasPlaying { journal.append(.transition, track: track, source: .world_catalog) }
         onConfirmed?(track)
-        DispatchQueue.main.async { self.currentTrack = track }
+        DispatchQueue.main.async {
+            self.currentTrack = track
+            self.matchError = nil
+        }
     }
 
     func session(_ session: SHSession, didNotFindMatchFor signature: SHSignature, error: Error?) {
-        // Frequent between tracks and when offline; the unknown logic runs on
-        // music time, not here. Post-MVP: queue the signature while offline
-        // and match it when the network returns (docs/MVP_PRD.md section 6).
+        // No match is frequent between tracks; the unknown logic runs on music
+        // time, not here. An error is different: a failed request (no network,
+        // ShazamKit App Service not enabled) and must be visible.
+        // Post-MVP: queue the signature while offline and match it when the
+        // network returns (docs/MVP_PRD.md section 6).
+        guard let error else { return }
+        print("ShazamKit match failed: \(error)")
+        let message = error.localizedDescription
+        DispatchQueue.main.async { self.matchError = message }
     }
 }

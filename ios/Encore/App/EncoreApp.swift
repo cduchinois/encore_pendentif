@@ -9,7 +9,15 @@ import SwiftUI
 
 @main
 struct EncoreApp: App {
-    @StateObject private var stage = RecognitionStage()
+    @StateObject private var stage: RecognitionStage
+
+    /// Started here, not in onAppear: a background relaunch for BLE state
+    /// restoration shows no scene, but the central must still be recreated.
+    init() {
+        let s = RecognitionStage()
+        s.start()
+        _stage = StateObject(wrappedValue: s)
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -25,7 +33,6 @@ struct EncoreApp: App {
                 SettingsView(receiver: stage.receiver)
                     .tabItem { Label("Settings", systemImage: "gearshape") }
             }
-            .onAppear { stage.start() }
         }
     }
 }
