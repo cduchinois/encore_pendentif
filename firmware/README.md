@@ -31,14 +31,14 @@ Expected log:
 ble advertising as "Encore"
 touch baseline 24817
 ready — double tap = PIN, long press = privacy toggle
-ble: waiting ok=0 fail=0
+ble: waiting ok=0 busy=0 dropped=0 queued=0
 ble connected 4a:...
 ble mtu 185
 ble subscribed, streaming
-ble: streaming ok=500 fail=0
+ble: streaming ok=500 busy=12 dropped=0 queued=0
 ```
 
-`ok` ≈ 500 per 5 s window is the full stream. Steady `fail` counts mean the phone drains notifications too slowly (check the connection interval, distance, 2.4 GHz congestion).
+`ok` ≈ 500 per 5 s window is the full stream. `busy` = the BLE stack was full for a moment; the packet stayed in a 240 ms queue and was resent (harmless). `dropped` = the queue overflowed and audio was really lost: steady `dropped` means the phone drains too slowly (distance, 2.4 GHz congestion, connection interval).
 
 Validate the stream from a Mac before touching the app (PRD step 3): `pip install bleak && python3 pipeline/tools/ble_listen.py --seconds 60`, then play `capture.wav` to the Shazam app.
 

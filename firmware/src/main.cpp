@@ -44,7 +44,14 @@ NimBLECharacteristic* txChar = nullptr;
 volatile bool subscribed = false;                  // phone listens to TX = stream audio
 uint16_t seq = 0;
 bool privacyMode = false;
-uint32_t sendOk = 0, sendFail = 0;                 // per-5s-window notify stats
+uint32_t sendOk = 0, sendBusy = 0, sendDropped = 0; // per-5s-window audio stats
+
+// Audio packets wait here when the BLE stack is busy (notify() fails while its
+// buffers are full) and are retried next loop instead of being lost.
+// 24 packets = 240 ms of slack; on overflow the oldest packet is dropped.
+static const int TXQ_LEN = 24;
+uint8_t txq[TXQ_LEN][3 + PKT_SAMPLES];
+int txqHead = 0, txqCount = 0;
 
 // ambiance state set by CMD_LED; flash overlays it briefly
 uint8_t ambMode = LED_OFF, ambR = 0, ambG = 0, ambB = 0;
@@ -93,15 +100,28 @@ bool notify(const uint8_t* pkt, size_t len) {
   return txChar->notify(pkt, len);
 }
 
-// One 20 ms I2S read -> two 10 ms AUDIO_ULAW packets (163 bytes, fits iOS's default MTU).
+// Send queued audio in order until the stack says busy; the rest waits for the next loop.
+void drainAudio() {
+  if (!subscribed) { txqCount = 0; return; }       // nobody listening: stale audio is useless
+  while (txqCount > 0) {
+    if (!notify(txq[txqHead], sizeof(txq[0]))) { sendBusy++; return; }
+    txqHead = (txqHead + 1) % TXQ_LEN; txqCount--; sendOk++;
+  }
+}
+
+// One 20 ms I2S read -> two 10 ms AUDIO_ULAW packets (163 bytes, fits the MTU iOS negotiates).
 void sendAudioFrame(const int16_t* pcm) {
-  uint8_t pkt[3 + PKT_SAMPLES];
-  pkt[0] = MSG_AUDIO_ULAW;
   for (int half = 0; half < FRAME_SAMPLES / PKT_SAMPLES; half++) {
+    if (txqCount == TXQ_LEN) {                     // queue full: drop the oldest
+      txqHead = (txqHead + 1) % TXQ_LEN; txqCount--; sendDropped++;
+    }
+    uint8_t* pkt = txq[(txqHead + txqCount) % TXQ_LEN];
+    txqCount++;
+    pkt[0] = MSG_AUDIO_ULAW;
     memcpy(pkt + 1, &seq, 2); seq++;
     for (int i = 0; i < PKT_SAMPLES; i++) pkt[3 + i] = ulawEncode(pcm[half * PKT_SAMPLES + i]);
-    if (notify(pkt, sizeof(pkt))) sendOk++; else sendFail++;
   }
+  drainAudio();
 }
 
 void sendEvent(uint8_t code) {
@@ -294,16 +314,19 @@ void loop() {
   if (micOk) i2s_read(I2S_NUM_0, pcm, sizeof(pcm), &got, portMAX_DELAY);  // paces the loop at 20 ms
   else delay(20);
   if (micOk && subscribed && !privacyMode && got == sizeof(pcm)) sendAudioFrame(pcm);
+  else drainAudio();
 
   pollTouch();
   if (millis() - lastHb >= 5000) {
     lastHb = millis();
     sendHeartbeat();
     // Self-diagnosis: one status line per window beats catching the boot log.
-    // ~500 ok per window while streaming; failures = BLE buffers full (phone too slow).
-    Serial.printf("ble: %s ok=%lu fail=%lu\n", subscribed ? "streaming" : "waiting",
-                  (unsigned long)sendOk, (unsigned long)sendFail);
-    sendOk = sendFail = 0;
+    // ~500 ok per window while streaming. busy = stack full, packet kept and
+    // retried (harmless); dropped = queue overflowed, audio really lost.
+    Serial.printf("ble: %s ok=%lu busy=%lu dropped=%lu queued=%d\n",
+                  subscribed ? "streaming" : "waiting", (unsigned long)sendOk,
+                  (unsigned long)sendBusy, (unsigned long)sendDropped, txqCount);
+    sendOk = sendBusy = sendDropped = 0;
   }
   renderLed();
 }
